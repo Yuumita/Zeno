@@ -15,6 +15,7 @@
 #include <vector>
 #include <iostream>
 #include <assert.h>
+#include <algorithm> // std::min
 
 #include "fft.hpp"
 #include "internal_math.hpp"
@@ -39,23 +40,14 @@ public:
      * @brief Reduce the 0 coefficients of the Polynomial (i.e remove all trailing zeroes)
      */
     void normalize(){
-        while(!this->a.empty() && this->a.back() == T(0)) {
+        while(!this->a.empty() && this->a.back() == T(0))
             this->a.pop_back();
-        }
-        if(this->a.size() == 0) this->a = {0};
     }
 
     /**
      * @brief Construct a new Polynomial object with degree -1 (No coefficients) 
      */
-    Poly(): a({0}){}
-
-    /**
-     * @brief Construct a new Polynomial object with degree n (but all coefficients 0) 
-     */
-    Poly(const int n) {
-        this->a.resize(n);
-    }
+    Poly(): a({}) {}
 
     /**
      * @brief Construct a new Polynomial object with coefficients from the list coefs 
@@ -84,7 +76,7 @@ public:
      * @param v The value of the constant polynomial
      */
     Poly(const T &v) {
-        this->a.assign(std::vector<T>({v}));
+        this->a.assign(1, v);
         this->normalize();
     }
 
@@ -106,6 +98,10 @@ public:
      */
     int deg() const {
         return this->a.size() - 1;
+    }
+
+    int is_zero() const {
+        return this->a.empty();
     }
 
     /**
@@ -143,8 +139,6 @@ public:
 
     /**
      * @brief Multiplication of two polynomials (*this and P)
-     * 
-     * @param P The other polynomial
      * @return Poly& The resulting polynomial
      */
     Poly times(const Poly& P) const {
@@ -153,9 +147,7 @@ public:
 
     /**
      * @brief Multiplication of this polynomial with the scalar v
-     * 
-     * @param v The scalar 
-     * @return Poly& The resulting polynomial
+     * @return Poly The resulting polynomial
      */
     Poly times(const T& v) const {
         return *this * v;
@@ -163,35 +155,107 @@ public:
 
     /**
      * @brief Subtraction of two polynomials (*this - P)
-     * 
-     * @param P The other polynomial
-     * @return Poly& The resulting polynomial
+     * @return Poly The resulting polynomial
      */
     Poly minus(const Poly& P) const {
         return *this - P;
     }
 
     /**
-     * @brief Division of two polynomials (*this / P)
-     * 
-     * @param P The other polynomial
-     * @return Poly& The resulting polynomial
+     * @return Poly A copy of this polynomial mod x^k (getting the first k coefficients)
      */
-    Poly div(const Poly& P) const {
-        return *this / P;
+    Poly mod_xk(int k) const {
+        return Poly(std::vector<T>(a.begin(), a.begin() + std::min(k, (int)a.size())));
     }
 
     /**
-     * @brief Division of this polynomial with the scalar v
-     * 
-     * @param v The scalar 
-     * @return Poly& The resulting polynomial
+     * @return Poly A copy of this polynomial times x^k (coefficients shifted k steps to the right)
      */
-    Poly div(const T& v) const {
-        return *this / v;
+    Poly times_xk(int k) const {
+        std::vector<int> coefs = this->a;
+        coefs.insert(coefs.begin(), k, 0);
+        return Poly(coefs);
+    }
+
+    /**
+     * @return Poly A copy of this polynomial with coefficients shifted k steps to the left
+     */
+    Poly floordiv_xk(int k) const {
+        return Poly(std::vector<T>(a.begin() + k, a.end()));
     }
 
 
+    /**
+     * @return Poly 
+     */
+    Poly sqrt_x() const {
+        Poly P(*this);
+        for(int i = 0; i <= P.deg(); i++) {
+            P.coef(i) = P[2*i];
+        }
+        P.normalize();
+        return P;
+    }
+
+    /**
+     * @return Poly 
+     */
+    Poly sqr_x() const {
+        Poly P(*this);
+        P.a.resize(2*P.deg() + 1);
+        for(int i = 0; i <= 2*P.deg(); i += 2) {
+            P.set(i, P[i/2]);
+        }
+        P.normalize();
+        return P;
+    }
+
+    /**
+     * @return Poly The multiplicative inverse of this polynomial mod x^k
+     */
+    Poly inverse(int k) const {
+        Poly A = this->mod_xk(k);
+        if(k == 1) return Poly(1 / A[0]);
+        Poly Am = A.scale_x(T(-1));
+        Poly B = Am * A;
+        B = B.sqrt_x().inverse(k / 2).sqr_x();
+        return Am * B;
+    }
+
+    /**
+     * @return Poly  A copy of this polynomial with coefficients reversed
+     */
+    Poly reverse() const {
+        return Poly(std::vector<T>(a.rbegin(), a.rend()));
+    }
+
+    /**
+     * @brief Euclidean division of this polynomial with the polynomial P
+     * @return pair<Poly, Poly> the quotiend (first) and remainder (second) polynomials
+     */
+    std::pair<Poly, Poly> div(const Poly& P) const {
+        assert(!P.is_zero());
+        if(P.deg() > this->deg()) {
+            return {Poly(0), Poly(*this)};
+        }
+        Poly A_R = this->reverse(), B_R = P.reverse();
+        int d = this->deg() - P.deg();
+        Poly D = ((A_R).mod_xk(d + 1) * P.inverse(d + 1)).mod_xk(d + 1).reverse();
+        return {D, *this - D * P};
+    }
+
+    /**
+     * @brief component-wise multiplication with v^k
+     * @return Poly A copy of the polynomial with the x value scaled by v
+     */ 
+    Poly scale_x(const T& v) const {
+        T c = 1;
+        Poly P(*this);
+        for(int i = 0; i <= P.deg(); i++, c *= v) { 
+            P.coef(i) *= c;
+        }
+        return  P;
+    }
 
     Poly& operator+=(const Poly &rhs) {
         int d = (this->deg() > rhs.deg() ? this->deg() : rhs.deg());
@@ -213,7 +277,6 @@ public:
         return *this;
     }
 
-    /* TODO: Multiplication */
     Poly& operator*=(const Poly &rhs) {
         this->a = fft::convolution(this->a, rhs.a);
         this->normalize();
@@ -226,14 +289,17 @@ public:
         return *this;
     }
 
-    /* TODO: Division */
     Poly& operator/=(const Poly &rhs) {
-        return *this;
+        return *this = div(rhs).first;
     }
 
     Poly& operator/=(const T &rhs) {
         for(auto &e: this->a) e /= rhs;
         return *this;
+    }
+
+    Poly& operator%=(const Poly &rhs) {
+        return *this = div(rhs).second;
     }
 
     Poly operator-() const {
@@ -246,8 +312,9 @@ public:
     Poly operator-(const Poly &rhs) const { return Poly(*this) -= rhs; }
     Poly operator*(const Poly &rhs) const { return Poly(*this) *= rhs; }
     Poly operator*(const T &rhs) const { return Poly(*this) *= rhs; }
-    Poly operator/(const Poly &rhs) const { return Poly(*this) *= rhs; }
-    Poly operator/(const T &rhs) const { return Poly(*this) *= rhs; }
+    Poly operator/(const Poly &rhs) const { return Poly(*this) /= rhs; }
+    Poly operator/(const T &rhs) const { return Poly(*this) /= rhs; }
+    Poly operator%(const Poly &rhs) const { return Poly(*this) %= rhs; }
 
     T operator[](const int index) const { return this->get(index); }
 
@@ -261,14 +328,14 @@ public:
     // Computes the derivative
     Poly deriv(int k = 1) {
         if(deg() + 1 < k) return Poly(T(0));
-        vector<T> res(deg() - k +  1);
+        std::vector<T> res(deg() - k +  1);
         if(k == 1) {
             for(int i = 1; i <= deg(); i++) {
                 res[i - 1] = a[i] * i;
             }
         } else {
             for(int i = k; i <= deg(); i++) {
-                res[i - k] = a[i] * internal::fact<T>(i) * internal::invfact(i - k);
+                res[i - k] = a[i] * internal::fact<T>(i) * internal::invfact<T>(i - k);
             }
         }
         return Poly(res);
@@ -276,7 +343,7 @@ public:
 
     // Compute integral with constant = 0
     Poly integr() {
-        vector<T> res(deg() + 2);
+        std::vector<T> res(deg() + 2);
         for(int i = 1; i <= deg() + 1; i++) {
             res[i] = a[i-1] / i;
         }
