@@ -24,7 +24,7 @@ namespace zeno {
 namespace fft {
 
 
-    using ftype = long double;
+    using ftype = int64_t;
 
     const ftype PI = acos(-1); 
     /**
@@ -70,7 +70,7 @@ namespace fft {
 
     const int cut =  (1 << 15);
     template<int m>
-    std::vector<modular<m>> convolution(std::vector<modular<m>> a, std::vector<modular<m>> b) {
+    std::vector<modint<m>> convolution(std::vector<modint<m>> a, std::vector<modint<m>> b) {
         size_t na = size_t(a.size()), nb = size_t(b.size());
         if(na == 0 || nb == 0) return {};
         if(na <= magic_number && nb <= magic_number) {
@@ -78,7 +78,7 @@ namespace fft {
                 std::swap(na, nb);
                 std::swap(a, b);
             }
-            std::vector<modular<m>> ans(na + nb - 1, modular<m>(0));
+            std::vector<modint<m>> ans(na + nb - 1, modint<m>(0));
             for(int i = 0; i < na; i++) {
                 for(int j = 0; j < nb; j++) {
                     ans[i + j] += a[i] * b[j];
@@ -112,9 +112,9 @@ namespace fft {
         fft(P1, true); 
         fft(P2, true);
 
-        std::vector<modular<m>> ans(N);
+        std::vector<modint<m>> ans(N);
         for(int i = 0; i < N; i++) {
-            modular<m> v0, v1, v2;
+            modint<m> v0, v1, v2;
 
             // (A1 * B1)(x)
             v0 = llround(P1[i].Re());

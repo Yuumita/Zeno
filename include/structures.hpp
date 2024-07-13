@@ -4,112 +4,110 @@
 #include <iostream>
 #include <utility> // ???
 #include <vector>
+#include "euclid.hpp"
 // #include <math.h> // acos
 #include <algorithm> // std::swap
 
 namespace zeno {
 
-
-template<typename R>
-class Fraction {
-
+template<class Z = int64_t>
+class fraction {
 private:
-    R num, den;  // numerator, denominator
+    Z num, den;  // numerator, denominator
     void normalize() {
-
+        Z g = zeno::gcd<Z>(num, den);
+        num /= g, den /= g;
     }
 public:
-    Fraction<R>() : num(R(0)), den(R(1)) {}
-    Fraction<R>(R num_, R den_): num(num_), den(den_) {
+    fraction() : num(Z(0)), den(Z(1)) {}
+    fraction(Z num_): num(num_), den(1) {}
+
+    template<typename T>
+    fraction(T n): num(Z(n)), den(1) {}
+
+    fraction(Z num_, Z den_): num(num_), den(den_) {
         normalize();
     }
-    Fraction<R>(R num_): num(num_), den(1) {}
-    Fraction<R>(long long n): num(R(n)), den(1) {}
 
-
-    Fraction& operator+=(Fraction const &rhs) { 
+    fraction& operator+=(fraction const &rhs) { 
         num = (num * rhs.den) + (rhs.num * den) ;
         den = den * rhs.den;
         normalize();
-    }
-    Fraction& operator++() { 
-        return Fraction(*this) += R(1);
+        return *this;
     }
 
-};
+    fraction& operator++() { 
+        num += den;
+        normalize();
+        return *this;
+    }
 
+    fraction operator++(int) { 
+        fraction tmp(*this);
+        operator++();
+        return tmp;
+    }
 
+    fraction operator-() const { 
+        return fraction(0) -= *this;
+    }
 
+    fraction operator-(fraction f) { 
+        return fraction(*this) -= f;
+    }
 
-template <int MOD = 998244353, bool is_prime = true>
-struct modular {
-    int v;
-    modular(): v(0) {}
-    modular(int vv) : v(vv < 0 ? vv % MOD + MOD : vv % MOD) {}
-    modular(long long vv) : v(static_cast(vv < 0 ? vv % MOD + MOD : vv % MOD)) {}
-    modular(int vv, std::nullptr_t) : v(vv) {}
-    operator int() const { return v; }
+    fraction& operator-=(fraction const &rhs) { 
+        num = (num * rhs.den) - (rhs.num * den) ;
+        den = den * rhs.den;
+        normalize();
+        return *this;
+    }
 
-    modular& operator+=(modular x) { v += x.v; if(v >= MOD) v -= MOD; return *this; }
-    modular& operator++() { if(v == MOD - 1) v = 0; else v++; return *this; }
-    modular operator++(int) { modular ans(*this); operator++(); return ans; }
-    modular operator-() const { return modular(0) -= *this; }
-    modular operator-(modular x) const { return modular(*this) -= x; }
-    modular& operator-=(modular x) { if(v < x.v) v += MOD; v -= x.v; return *this; }
-    modular& operator--() { if(v == 0) v = MOD - 1; else v--; return *this; }
-    modular operator--(int) { modular ans(*this); operator--(); return ans; }
-    modular& operator*=(modular x) { v = 1ll * v * x.v % MOD; return *this; }
-    modular& operator/=(modular x) { return operator*=(x.inverse()); }
+    fraction& operator--() { 
+        num -= den;
+        normalize();
+        return *this;
+    }
+
+    fraction operator--(int) { 
+        fraction tmp(*this);
+        operator--();
+        return tmp;
+    }
+
+    fraction& operator*=(fraction const &rhs) { 
+        num = num * rhs.num;
+        den = den * rhs.den;
+        normalize();
+        return *this;
+    }
+
+    fraction& operator/=(fraction const &rhs) { 
+        num = num * rhs.den;
+        den = den * rhs.num;
+        normalize();
+        return *this;
+    }
+
 
     /* casting */
-    template<class T> modular operator+(T x) const { return modular(*this) += x; }
-    template<class T> modular& operator+=(T x) { return operator+=(modular(x)); }
-    template<class T> modular operator-(T x) const { return modular(*this) -= x; }
-    template<class T> modular& operator-=(T x) { return operator-=(modular(x)); }
-    template<class T> modular operator*(T x) const { return modular(*this) *= x; }
-    template<class T> modular& operator*=(T x) { return operator*=(modular(x)); }
-    template<class T> modular operator/(T x) const { return modular(*this) /= x; }
-    template<class T> modular& operator/=(T x) { return operator/=(modular(x)); }
+    template<class T> fraction  operator+(T x) const { return fraction(*this) += x; }
+    template<class T> fraction  operator-(T x) const { return fraction(*this) -= x; }
+    template<class T> fraction  operator*(T x) const { return fraction(*this) *= x; }
+    template<class T> fraction  operator/(T x) const { return fraction(*this) /= x; }
+    template<class T> fraction& operator+=(T x)      { return operator+=(fraction(x)); }
+    template<class T> fraction& operator-=(T x)      { return operator-=(fraction(x)); }
+    template<class T> fraction& operator*=(T x)      { return operator*=(fraction(x)); }
+    template<class T> fraction& operator/=(T x)      { return operator/=(fraction(x)); }
 
-    modular pow(int n) const { /* change it so it uses zeno::pow */
-        modular ret(1), mul(v);
-        while (n > 0) {
-            if (n & 1) ret *= mul;
-            mul *= mul, n /= 2;
-        }
-        return ret;
-    }
-
-    modular inv() const {
-
-        // Fermat's Little Theorem
-        if(is_prime) return pow(MOD - 2);
-
-        int a = v, b = MOD, u = 1, v = 0, t;
-        while (b > 0) {
-            t = a / b;
-            std::swap(a -= t * b, b);
-            std::swap(u -= t * v, v);
-        }
-        return modular(u);
-    }
-
-    modular inverse() const { return inv(); }
-
-    int get_mod() { return MOD; }
-
-    friend std::ostream &operator<<(std::ostream &os, const modular &p) { return os << p.v; }
-    friend std::istream &operator>>(std::istream &is, modular &a) {
-        int t; is >> t;
-        a = modular(t);
-        return (is);
-    }
+    friend std::ostream &operator<<(std::ostream &os, const fraction &f) { return os << f.num << "/" << f.den; }
 };
+using rational = fraction<int64_t>;
 
-template<int M>
-using modint = modular<M, false>; 
 
-using modint998244353 = modular<998244353, true>; 
+
+
+
 
 } // namespace zeno
 
