@@ -10,7 +10,6 @@ namespace zeno
 namespace internal
 {
 
-const int DEFAULT_MOD = 998244353;
 
 // Computes factorial
 template<typename Z = int64_t>
@@ -34,6 +33,18 @@ Z binary_exponentiation_mod(Z base, Z e, Z mod) {
     return result;
 }
 
+template<class Z = int64_t>
+constexpr Z binary_exponentiation_mod_constexpr(Z base, Z e, Z mod) {
+    Z result = 1;
+    base %= mod;
+    while (e > 0) {
+        if (e & 1) result = (__int128_t)result * base % mod;
+        base = (__int128_t)base * base % mod;
+        e >>= 1;
+    }
+    return result;
+}
+
 /* G should form a group, Z should be an integer struct */
 template<class G = int64_t, class Z = int64_t>
 G binary_exponentiation(G g, Z n) {
@@ -44,6 +55,11 @@ G binary_exponentiation(G g, Z n) {
         n /= 2, x *= x;
     }
     return y;
+}
+
+template<class G = int64_t, class Z = int64_t>
+G pow(G g, Z n) {
+    return binary_exponentiation(g, n);
 }
 
 template<typename Z = int64_t>

@@ -23,23 +23,22 @@ namespace zeno {
 
 namespace fft {
 
+    size_t compute_convolution_size(size_t n, size_t m) {
+        return (1u << internal::ceil_log2(n + m - 1));
+    }
 
-    using ftype = int64_t;
 
+    using ftype = double;
     const ftype PI = acos(-1); 
-    /**
-    * @brief Transform the sequence a to its Fourier transformation
-    * 
-    * @param a The sequence to be transformed
-    * @param n The length of the sequence. It should be a power of 2
-    * @param inverse 1 corresponds to the standard transform (a := F{a}),
-    *  0 is for the inverse transform (a := F^-1{a})
-    * @pre n is a power of 2
-    */
-    void fft(std::vector<complex<ftype>> &a, bool inverse = false) {
+
+    /// @brief Transform the sequence a to its Fourier transformation. 
+    ///        If inverse is true then apply the inverse Fourier transform.
+    /// @pre n is a power of 2
+    template<typename T>
+    void fft_complex(std::vector<complex<T>> &a, bool inverse = false) {
         size_t n = a.size();
         if(n <= 1) return;
-        std::vector<complex<ftype>> a0(n/2), a1(n/2);
+        std::vector<complex<T>> a0(n/2), a1(n/2);
         for(int i = 0; i < n / 2; i++) {
             a0[i] = a[2*i];
             a1[i] = a[2*i + 1];
@@ -47,30 +46,62 @@ namespace fft {
         fft(a0, inverse);
         fft(a1, inverse);
 
-        ftype angle = 2 * PI / n * (inverse ? -1 : +1);
-        complex<ftype> wn(cos(angle), sin(angle)), w(1);
+        T angle = 2 * PI / n * (inverse ? -1 : +1);
+        complex<T> wn(cos(angle), sin(angle)), w(1);
         for(int i = 0; i < n/2; i++) {
             a[i] = a0[i] + w * a1[i];
             a[i + n/2] = a0[i] - w * a1[i];
             if(inverse) {
-                a[i] /= 2;
-                a[i + n/2] /= 2;
+                a[i] /= T(2);
+                a[i + n/2] /= T(2);
             }
             w *= wn;
         }
     }
 
-    size_t compute_convolution_size(size_t n, size_t m) {
-        if(n == 0 || m == 0) return 0;
-        return (1u << internal::ceil_log2(n + m - 1));
+    template<typename T>
+    void inv_fft_complex(std::vector<T> &a) { fft_complex(a, true); }
+
+    template<typename T>
+    std::vector<T> convolution_fft_complex(std::vector<T> const &a, std::vector<T> const &b) {
+        if(a.empty() || b.empty()) return {};
+
+        size_t n = size_t(a.size()), m = size_t(b.size());
+        size_t N = compute_convolution_size(n, m);
+
+        std::vector<complex<T>> fa(N, complex<T>(0)), fb(N, complex<T>(0)); // maybe replace T with ftype ???
+        for(int i = 0; i < n; i++) fa[i] = complex<T>(a[i]);
+        for(int i = 0; i < m; i++) fb[i] = complex<T>(b[i]);
+
+        fft_complex(fa);
+        fft_complex(fb);
+
+        for(int i = 0; i < N; i++)
+            fa[i] *= fb[i];
+
+        inv_fft_complex(fa);
+        
+        std::vector<T> ans(n + m - 1);
+        for(size_t i = 0; i < n + m - 1; i++) 
+            ans[i] = T(fa[i].Re());
+
+        return ans;
     }
+
+    template<typename T>
+    void fft(std::vector<T> &a, bool inverse = false) {
+        
+    }
+
+    template<typename T>
+    void inv_fft(std::vector<T> &a) { fft(a, true); }
 
     const int magic_number = 0; // 60;
 
 
     const int cut =  (1 << 15);
     template<int m>
-    std::vector<modint<m>> convolution(std::vector<modint<m>> a, std::vector<modint<m>> b) {
+    std::vector<modint<m>> convolution_wcut(std::vector<modint<m>> a, std::vector<modint<m>> b) {
         size_t na = size_t(a.size()), nb = size_t(b.size());
         if(na == 0 || nb == 0) return {};
         if(na <= magic_number && nb <= magic_number) {
@@ -130,49 +161,56 @@ namespace fft {
         return ans;
     }
 
-    template<typename T>
-    std::vector<T> convolution(std::vector<T> a, std::vector<T> b) {
-        size_t n = size_t(a.size()), m = size_t(b.size());
-        if(n == 0 || m == 0) return {};
-        if(n <= magic_number && m <= magic_number) {
-            if(n < m) {
-                std::swap(n, m);
-                std::swap(a, b);
-            }
-            std::vector<T> ans(n + m - 1, T(0));
-            for(int i = 0; i < n; i++) {
-                for(int j = 0; j < m; j++) {
-                    ans[i + j] += a[i] * b[j];
-                }
-            }
-            return ans;
-        }
 
+
+    template<typename T>
+    std::vector<T> convolution_fft(std::vector<T> const &a, std::vector<T> const &b) {
+        if(a.empty() || b.empty()) return {};
+
+        size_t n = size_t(a.size()), m = size_t(b.size());
         size_t N = compute_convolution_size(n, m);
-        std::vector<complex<ftype>> fa(N, 0), fb(N, 0);
-        for(int i = 0; i < n; i++) fa[i] = complex<ftype>(a[i]);
-        for(int i = 0; i < m; i++) fb[i] = complex<ftype>(b[i]);
+
+        std::vector<T> fa(a.begin(), a.end()), fb(b.begin(), b.end());
 
         fft(fa);
         fft(fb);
-
-        for(int i = 0; i < N; i++){
+        for(int i = 0; i < N; i++) 
             fa[i] *= fb[i];
-        }
+        inv_fft(fa);
 
-        fft(fa, true);
-        
-        std::vector<T> ans(n + m - 1);
-        for(int i = 0; i < n + m - 1; i++) 
-            ans[i] = llround(fa[i].Re());
-
-        return ans;
+        fa.resize(n + m - 1);
+        return fa;
     }
 
+    template <typename T>
+     std::vector<T> convolution_naive(std::vector<T> const &a, std::vector<T> const &b) {
+        if (a.empty() || b.empty()) return {};
+        size_t n = a.size(), m = b.size();
+        std::vector<T> ret(n + m - 1);
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < m; ++j) 
+                ret[i + j] += a[i] * b[j];
+        return ret;
+    }
 
+    template <typename T>
+    std::vector<T> convolution(std::vector<T> const &a, std::vector<T> const &b) {
+        if (std::min(a.size(), b.size()) <= magic_number) 
+            return convolution_naive(a, b);
+        if(zeno::is_modular_v<T>) {
+            // ntt
+        } 
+        /* 
+        else if(std::is_integral_v<T>) {
+            std::vector<bigint> A(a), B(b), R;
+            R = convolution_
+        } 
+        */
+        return convolution_fft_complex<T>(a, b);
+    }
 
 } // namespace fft
 
 } // namespace zeno
 
- #endif
+#endif

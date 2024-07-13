@@ -28,6 +28,7 @@ public:
     fraction(Z num_, Z den_): num(num_), den(den_) {
         normalize();
     }
+    
 
     fraction& operator+=(fraction const &rhs) { 
         num = (num * rhs.den) + (rhs.num * den) ;

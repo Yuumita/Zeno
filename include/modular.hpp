@@ -7,6 +7,7 @@
 namespace zeno 
 {
 
+
 template <typename Z, Z MOD>
 class static_modular {
     static_assert(1 <= MOD, "Template parameter MOD must be greater than or equal to 1.");
@@ -34,7 +35,7 @@ public:
 
     modular& operator+=(const modular &x) { v += x.v; if(v >= umod()) v -= umod(); return *this; }
     modular& operator-=(const modular &x) { if(v < x.v) v += umod() - x.v; else v -= x.v; return *this; }
-    modular& operator*=(const modular &x) { v = (uZ)((uint64_t)(v) * x.v )% umod(); return *this; }
+    modular& operator*=(const modular &x) { v = (uZ)((__uint128_t)(v) * x.v % umod()); return *this; }
     modular& operator/=(const modular &x) { return operator*=(x.inv()); }
 
     modular& operator++() { if(v == umod() - 1) v = 0; else v++; return *this; }
@@ -62,13 +63,19 @@ public:
     friend bool operator==(const modular &A, const modular &B) { return A.v == B.v; }
     friend bool operator!=(const modular &A, const modular &B) { return A.v != B.v; }
 
-    modular pow(int64_t n) const { /* change it so it uses zeno::pow ??? */
+    template<typename T> friend bool operator==(const modular &A, const T &B) { return A.v == modular(B).v; }
+    template<typename T> friend bool operator!=(const modular &A, const T &B) { return A.v != modular(B).v; }
+
+    modular pow(Z n) const { /* change it so it uses zeno::pow ??? */
         modular ret(1), mul(v);
         if(n < 0) mul = mul.inv(), n = -n;
         while (n > 0) {
             if (n & 1) ret *= mul;
             mul *= mul, n >>= 1;
+            assert(mul != modular(0));
+            assert(ret != modular(0));
         }
+        assert(ret * modular(*this) == modular(1));
         return ret;
     }
 
@@ -78,7 +85,7 @@ public:
         if(is_prime)
             return pow(umod() - 2);
 
-        int64_t a = v, b = mod(), u = 1, v = 0, t;
+        Z a = v, b = mod(), u = 1, v = 0, t;
         while (b > 0) {
             t = a / b;
             std::swap(a -= t * b, b);
@@ -92,7 +99,7 @@ public:
 
     friend std::ostream &operator<<(std::ostream &os, const modular &p) { return os << p.v; }
     friend std::istream &operator>>(std::istream &is, modular &a) {
-        int64_t t; is >> t;
+        Z t; is >> t;
         a = modular(t);
         return (is);
     }
@@ -194,8 +201,24 @@ public:
 };
 
 
+template<typename T>
+struct is_modular : std::false_type {};
+
+template<typename Z, Z m>
+struct is_modular<zeno::static_modular<Z, m>> : std::true_type {};
+
+template<typename Z>
+struct is_modular<zeno::dynamic_modular<Z>> : std::true_type {};
+
+template<typename T>
+inline constexpr bool is_modular_v = is_modular<T>::value {};
+
+
 template<int M>
 using modint = static_modular<int, M>; 
+
+template<int64_t M>
+using modlong = static_modular<int64_t, M>; 
 
 template<int M>
 using modint32 = static_modular<int32_t, M>; 
@@ -205,10 +228,11 @@ using modint64 = static_modular<int64_t, M>;
 
 using modint998244353 = static_modular<int, 998244353>; 
 
-using mint = dynamic_modular<int>;
-using mint32 = dynamic_modular<int32_t>;
-using mint64 = dynamic_modular<int64_t>;
+using dmint = dynamic_modular<int32_t>;
+using dmint32 = dynamic_modular<int32_t>;
+using dmint64 = dynamic_modular<int64_t>;
 
 }; // namespace zeno
+
 
 #endif /* ZENO_MODULAR_HPP */

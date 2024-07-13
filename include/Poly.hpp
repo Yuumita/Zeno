@@ -84,7 +84,7 @@ public:
     /// @param i The index of the coefficient
     /// @return R The coefficient
     R get(const int i) const {
-        return (0 <= i && i < this->a.size() ? this->a[i] : R(0));
+        return (0 <= i && i <= deg() ? this->a[i] : R(0));
     }
 
     /// @brief Set the coefficient of x^i
@@ -94,6 +94,10 @@ public:
         assert(0 <= i);
         if(this->a.size() <= i) this->a.resize(i+1);
         this->a[i] = c;
+    }
+
+    void resize(const int i) {
+        if(deg() < i) this->a.resize(i + 1);
     }
 
     R leadcoef() const {
@@ -156,33 +160,39 @@ public:
 
     /// @return Poly P(x^{1/2})
     Poly sqrt_x() const {
-        Poly P(*this);
-        for(int i = 0; i <= P.deg(); i++) {
-            P.coef(i) = P[2*i];
-        }
-        P.normalize();
-        return P;
+        std::vector<R> ret(this->a.size(), R(0));
+        for(int i = 0; i < this->a.size(); i++)
+            ret[i] = get(2*i);
+        return Poly(ret);
     }
 
     /// @return Poly P(x^2)
     Poly sqr_x() const {
-        Poly P(*this);
-        P.a.resize(2*P.deg() + 1);
-        for(int i = 0; i <= 2*P.deg(); i += 2) {
-            P.set(i, P[i/2]);
-        }
-        P.normalize();
-        return P;
+        std::vector<R> ret(2 * this->a.size(), R(0));
+        for(int i = 0; i < this->a.size(); i++)
+            ret[2*i] = this->a[i];
+        return Poly(ret);
     }
 
-    /// @return Poly The multiplicative inverse of this polynomial mod x^k
-    Poly inverse(int k) const {
-        Poly A = this->mod_xk(k);
-        if(k == 1) return Poly(1 / A[0]);
-        Poly Am = A.scale_x(R(-1));
-        Poly B = Am * A;
-        B = B.sqrt_x().inverse(k / 2).sqr_x();
-        return Am * B;
+    /// @return Poly The multiplicative inverse of this polynomial mod x^m
+    Poly inv(int m = deg() + 1) const {
+        assert(get(0) != R(0));
+        if(m == 0) return Poly(0);
+        Poly Q(R(1) / get(0));
+        for(int i = 1; i < m; i *= 2)
+            Q = (Q * R(2) - Q * Q * this->mod_xk(2*i)).mod_xk(2*i);
+        return Q.mod_xk(m);
+        /*
+            if(m == 1) return Poly(R(1) / get(0)); 
+            Poly A = this->mod_xk(m);
+            Poly Am = A.scale_x(R(-1));
+            Poly B = Am * A;
+            B = B.sqrt_x().inv((m+1) / 2).sqr_x();
+            std::cerr << "inv (m = " << m << ") --> " << (Am * B).mod_xk(m) << std::endl;
+            std::cerr << A.mod_xk(m) << " * " << (Am*B).mod_xk(m) << " = " << (A*Am*B).mod_xk(m) << std::endl;
+            std::cerr << "inv (m = " << m << ") --> " << (Am * B).mod_xk(m) << std::endl;
+            return (Am * B).mod_xk(m);
+        */
     }
 
     /// @return Poly  A copy of this polynomial with coefficients reversed
@@ -198,7 +208,7 @@ public:
             return {Poly(0), Poly(*this)};
         Poly A_R = this->reverse(), B_R = P.reverse();
         int d = this->deg() - P.deg();
-        Poly D = ((A_R).mod_xk(d + 1) * P.inverse(d + 1)).mod_xk(d + 1).reverse();
+        Poly D = ((A_R).mod_xk(d + 1) * P.inv(d + 1)).mod_xk(d + 1).reverse();
         return {D, *this - D * P};
     }
 
@@ -258,6 +268,14 @@ public:
         return *this = div(rhs).second;
     }
 
+    // TODO: >>=, <<= shifts
+    // Poly& operator<<=(const int s) {
+    //     return *this = (*this).shift(s);
+    // }
+    // Poly& operator>>=(const int s) {
+    //      return operator<<=(-s);
+    // }
+
     Poly operator-() const {
         auto t = *this;
         for(auto &e: t.a) e = -e;
@@ -280,29 +298,51 @@ public:
 
 
     // Computes the derivative
-    Poly deriv(int k = 1) {
+    Poly deriv(int k = 1) const {
         if(deg() + 1 < k) return Poly(R(0));
-        std::vector<R> res(deg() - k +  1);
+        std::vector<R> res(deg() - k +  1, R(0));
         if(k == 1) {
             for(int i = 1; i <= deg(); i++)
-                res[i - 1] = a[i] * i;
+                res[i - 1] = get(i) * R(i);
         } else {
             for(int i = k; i <= deg(); i++)
-                res[i - k] = a[i] * internal::fact<R>(i) / internal::fact<R>(i - k);
+                res[i - k] = get(i) * internal::fact<R>(i) / internal::fact<R>(i - k);
         }
         return Poly(res);
     }
 
-    /// @brief Compute the integral of the polynomial (with contant 0)
-    /// @return The integral of the polynomial
-    Poly integr() {
+    /// @return The integral of the polynomial (with constant 0)
+    Poly integr() const {
         std::vector<R> res(deg() + 2);
         for(int i = 1; i <= deg() + 1; i++) {
-            res[i] = a[i-1] / i;
+            res[i] = get(i-1) / i;
         }
         return Poly(res);
     }
 
+    /// @return The (natural) logarithm of the polynomial (mod x^m)
+    Poly log(int m) const {
+        return (Poly(*this).deriv().mod_xk(m) * Poly(*this).inv(m)).mod_xk(m); 
+    }
+
+    Poly exp(int m) const {
+        assert(get(0) == 0);
+        std::cerr << "T0" << std::endl;
+        Poly Q(1), P(*this);
+        P.coef(0) += 1;
+        for(int i = 1; i < m; i *= 2) { // at the end of each step: F = e^P (mod x^{2^{i+1}})
+            std::cerr << "T0.5" << std::endl;
+            // Q = (Q * (P - Q.log(2*i))).mod_xk(2*i);
+            Q = (Q * (P - Q.mod_xk(2*i))).mod_xk(2*i);
+            std::cerr << "T0.8" << std::endl;
+        }
+        std::cerr << "T1" << std::endl;
+        return Q.mod_xk(m);
+    }
+
+    Poly sqrt(int k = 2) const {
+
+    }
 
     /// @brief Evaluate the polynomial at point x0
     /// @return The value of the polynomial at point x0 
@@ -352,6 +392,44 @@ public:
     }
 
 
+    static Poly<R> _interpolate_tree(std::vector<Poly<R>> const &tree, 
+        int v, typename std::vector<R>::iterator l, typename std::vector<R>::iterator r) {
+            if(r - l == 1) {
+                return tree[v] = Poly<R>(*l);
+            } else {
+                auto m = l + (r - l) / 2;
+                Poly<R> A = _interpolate_tree(tree, 2*v, l, m);
+                Poly<R> B = _interpolate_tree(tree, 2*v+1, m, r);
+                return tree[v] = A * tree[2*v+1] + tree[2*v] * B;
+            }
+    }
+
+
+    static Poly<R> interpolate(std::vector<R> const &x, std::vector<R> const &y) {
+        assert(x.size() == y.size());
+        std::vector<Poly<R>> tree(4*x.size());
+        std::vector<R> u = Poly<R>::build_poly_tree(tree, 1, begin(x), end(x)).deriv().eval(x);
+        for(int i = 0; i < y.size(); i++)
+            u[i] = y[i] / u[i];
+        return _interpolate_tree(tree, 1, begin(u), end(u));
+    }
+
+
+    /// @return The Borel transformation of the polynomial (a_k x^k -> a_k / k! x^k)
+    Poly<R> borel() const {
+        Poly<R> ret = *this;
+        for(int k = 0; k <= deg(); k++)
+            ret->a[k] /= internal::fact(k);
+        return ret;
+    }
+
+    /// @return The inverse Borel (Laplace) transformation of the polynomial (a_k x^k -> k!a_k x^k)
+    Poly<R> invborel() const {
+        Poly<R> ret = *this;
+        for(int k = 0; k <= deg(); k++)
+            ret->a[k] *= internal::fact(k);
+        return ret;
+    }
 
 };
 
@@ -417,46 +495,6 @@ Poly<K> extended_gcd(Poly<K> const &A, Poly<K> const &B, Poly<K> &U, Poly<K> &V)
     }
     V = (D - A*U) / B;
 }
-
-
-
-/// @return The polynomial P(x) = (x - x_L) (x - x_{L+1}) ... (x - x_R)
-template<class R>
-Poly<R> _build_poly_tree(std::vector<Poly<R>> &tree, 
-    std::vector<R> const &x, int v, int l, int r) {
-        if(l == r) {
-            return tree[v] = Poly({-x[l], 1});
-        } else {
-            int m = l + (r - l) / 2;
-            return tree[v] = _build_poly_tree(tree, x, 2*v, l, m) 
-                * _build_poly_tree(tree, x, 2*v+1, m+1, r);
-        }
-    }
-
-template<class R>
-Poly<R> _interpolate_tree(std::vector<Poly<R>> const &tree, 
-    int v, typename std::vector<R>::iterator l, typename std::vector<R>::iterator r) {
-        if(r - l == 1) {
-            return tree[v] = Poly<R>(*l);
-        } else {
-            auto m = l + (r - l) / 2;
-            Poly<R> A = _interpolate_tree(tree, 2*v, l, m);
-            Poly<R> B = _interpolate_tree(tree, 2*v+1, m, r);
-            return tree[v] = A * tree[2*v+1] + tree[2*v] * B;
-        }
-}
-
-
-template<class R>
-Poly<R> interpolate(std::vector<R> const &x, std::vector<R> const &y) {
-    assert(x.size() == y.size());
-    std::vector<Poly<R>> tree(4*x.size());
-    std::vector<R> u = Poly<R>::build_poly_tree(tree, 1, begin(x), end(x)).deriv().eval(x);
-    for(int i = 0; i < y.size(); i++)
-        u[i] = y[i] / u[i];
-    return _interpolate_tree(tree, 1, begin(u), end(u));
-}
-
 
 } // namespace polynomial
 

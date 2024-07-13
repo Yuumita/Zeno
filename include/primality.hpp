@@ -4,7 +4,6 @@
 #include <vector>
 #include <cstdint>
 #include <stdlib.h> /* abs */
-#include "structures.hpp"
 #include "internal.hpp"
 
 namespace zeno 
@@ -165,11 +164,48 @@ void standard_factorize(Z n, std::vector<Z> &p, std::vector<Z> &v) {
 namespace internal
 {
 
+template<class Z = int64_t>
+constexpr bool check_composite_constexpr(Z n, Z a, Z d, Z s) {
+    Z x = internal::binary_exponentiation_mod_constexpr(a, d, n);
+    if (x == 1 || x == n - 1)
+        return false;
+    for (Z r = 1; r < s; r++) {
+        x = (__int128_t)x * x % n;
+        if (x == n - 1)
+            return false;
+    }
+    return true;
+};
+
+template<class Z = int64_t>
+constexpr bool miller_rabin_constexpr(Z n) {
+    if(n <= 1) return false;
+
+    Z r = 0;
+    Z d = n - 1;
+    while(~d&1) d >>= 1, r++;
+
+    if(sizeof(Z) <= 8) {
+        for(Z a : {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37}) {
+            if (n == a)
+                return true;
+            if (check_composite_constexpr(n, a, d, r))
+                return false;
+        }
+    } else {
+        for(Z a = 2; a <= 2 * internal::sqr(internal::ceil_log2<Z>(n)) && a <= n - 2; a++) {
+            if (check_composite_constexpr(n, a, d, r))
+                return false;
+        }
+    }
+    return true;
+}
+
 constexpr bool _is_prime_constexpr(int64_t n) {
     if(n <= 1) return false;
     if(n == 2) return true;
     if(n % 2 == 0) return false;
-    return zeno::primality::is_prime(n);
+    return zeno::internal::miller_rabin_constexpr(n);
 }
 
 template <int64_t n> constexpr bool is_prime_constexpr = _is_prime_constexpr(n);
