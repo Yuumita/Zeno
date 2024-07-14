@@ -28,7 +28,7 @@ namespace fft {
     }
 
 
-    using ftype = double;
+    using ftype = long double;
     const ftype PI = acos(-1); 
 
     /// @brief Transform the sequence a to its Fourier transformation. 
@@ -69,9 +69,9 @@ namespace fft {
         size_t n = size_t(a.size()), m = size_t(b.size());
         size_t N = compute_convolution_size(n, m);
 
-        std::vector<complex<T>> fa(N, complex<T>(0)), fb(N, complex<T>(0)); // maybe replace T with ftype ???
-        for(int i = 0; i < n; i++) fa[i] = complex<T>(a[i]);
-        for(int i = 0; i < m; i++) fb[i] = complex<T>(b[i]);
+        std::vector<complex<ftype>> fa(N, complex<ftype>(0)), fb(N, complex<ftype>(0)); // maybe replace T with ftype ???
+        for(int i = 0; i < n; i++) fa[i] = complex<ftype>(a[i]);
+        for(int i = 0; i < m; i++) fb[i] = complex<ftype>(b[i]);
 
         fft_complex(fa);
         fft_complex(fb);
@@ -94,35 +94,34 @@ namespace fft {
     }
 
     template<typename T>
-    void inv_fft(std::vector<T> &a) { fft(a, true); }
+    void inv_fft(std::vector<T> &a) { 
+        fft(a, true); 
+    }
 
     const int magic_number = 0; // 60;
 
+    template<typename T>
+    std::vector<T> convolution_wcut(std::vector<T> a, std::vector<T> b) {
+        if(a.empty() || b.empty()) return {};
 
-    const int cut =  (1 << 15);
-    template<int m>
-    std::vector<modint<m>> convolution_wcut(std::vector<modint<m>> a, std::vector<modint<m>> b) {
         size_t na = size_t(a.size()), nb = size_t(b.size());
-        if(na == 0 || nb == 0) return {};
-        if(na <= magic_number && nb <= magic_number) {
-            if(na < nb) {
-                std::swap(na, nb);
-                std::swap(a, b);
-            }
-            std::vector<modint<m>> ans(na + nb - 1, modint<m>(0));
-            for(int i = 0; i < na; i++) {
-                for(int j = 0; j < nb; j++) {
-                    ans[i + j] += a[i] * b[j];
-                }
-            }
-            return ans;
-        }
-
         size_t N = compute_convolution_size(na, nb);
+
+
+        T cut = zeno::pow(T(2), sizeof(T) * 4u);
+
         // Az(x) = A1(x) + iA2(x) = (A%cut)(x) + i(A/cut)(x)   [same for B(x)]
         std::vector<complex<ftype>> Az(N), Bz(N);
-        for(int i = 0; i < na; i++) Az[i] = complex<ftype>(int(a[i]) % cut, int(a[i]) / cut);
-        for(int i = 0; i < nb; i++) Bz[i] = complex<ftype>(int(b[i]) % cut, int(b[i]) / cut);
+        for(int i = 0; i < na; i++) {
+            T x0 = std::floor(a[i] / cut), x1 = a[i] - x0;
+            Az[i] = complex<ftype>(x0, x1);
+
+        }
+
+        for(int i = 0; i < nb; i++) {
+            T x0 = std::floor(b[i] / cut), x1 = b[i] - x0;
+            Bz[i] = complex<ftype>(x0, x1);
+        }
 
 
         fft(Az);
@@ -143,17 +142,16 @@ namespace fft {
         fft(P1, true); 
         fft(P2, true);
 
-        std::vector<modint<m>> ans(N);
+        std::vector<T> ans(N);
         for(int i = 0; i < N; i++) {
-            modint<m> v0, v1, v2;
+            T v0, v1, v2;
 
             // (A1 * B1)(x)
-            v0 = llround(P1[i].Re());
+            v0 = T(P1[i].Re());
             // (A1 * B2 + A2 * B1)(x)
-            v1 = llround(P1[i].Im() + P2[i].Re());
+            v1 = T(P1[i].Im() + P2[i].Re());
             // (A2 * B2)(x)
-            v2 = llround(P2[i].Im());
-
+            v2 = T(P2[i].Im());
 
             ans[i] = v0 + v1*cut + v2*cut*cut;
         }
@@ -202,6 +200,7 @@ namespace fft {
         } 
         /* 
         else if(std::is_integral_v<T>) {
+            // strassen ??? 
             std::vector<bigint> A(a), B(b), R;
             R = convolution_
         } 

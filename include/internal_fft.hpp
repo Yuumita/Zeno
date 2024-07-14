@@ -19,10 +19,7 @@ namespace zeno {
 
 namespace fft {
 
-    /**
-    * @brief Complex numbers struct
-    * 
-    */
+    /// @brief Complex numbers struct
     template<typename T>
     struct complex { 
         T x, y;

@@ -2,6 +2,7 @@
 #define ZENO_EUCLID_HPP
 
 #include <vector>
+#include <cstdint>
 
 namespace zeno {
 

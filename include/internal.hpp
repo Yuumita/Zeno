@@ -1,7 +1,6 @@
 #ifndef ZENO_INTERNAL_HPP
 #define ZENO_INTERNAL_HPP
 
-
 #include <cstdint>
 
 namespace zeno
