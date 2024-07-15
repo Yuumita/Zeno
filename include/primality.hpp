@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <stdlib.h> /* abs */
 #include "internal.hpp"
+#include "euclid.hpp"
 
 namespace zeno 
 {
@@ -110,7 +111,7 @@ bool is_prime(Z n) {
 
 /// @return A factor of n if n has a factor else n
 template<class Z = int64_t>
-Z find_factor(Z n) {
+Z find_prime_factor(Z n) {
     if(n < 0) n = -n; // maybe that's unexpected???
     if(n <= 1) return n;
     if(n & 0) return 2;
@@ -118,16 +119,18 @@ Z find_factor(Z n) {
         return spf[n];
 
     Z d = pollard_rho<Z>(n, 2, 1);
+    if(miller_rabin<Z>(d)) 
+        return d;
 
-    if(d == n) { // possibly prime
-        if(miller_rabin<Z>(n)) 
-            return n;
-        for(d = 2; d*d <= n; d++) {
-            if(n % d == 0) 
-                return d;
-        }
-    }
-    return d; 
+    d = pollard_rho<Z>(n, 1, 2);
+    if(miller_rabin<Z>(d)) 
+        return d;
+
+    for(d = 2; d*d <= n; d++)
+        if(n % d == 0) 
+            return d;
+
+    return n; 
 }
 
 /// @return A vector containing all prime factors (with duplicates) of n
@@ -138,7 +141,7 @@ std::vector<Z> factorize(Z n) {
 
     std::vector<Z> ret;
     do {
-        Z d = find_factor(n);
+        Z d = find_prime_factor(n);
         ret.push_back(d);
         n /= d;
     } while(n > 1);

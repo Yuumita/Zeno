@@ -15,6 +15,7 @@
 #include "internal.hpp"
 #include "internal_fft.hpp"
 #include "modular.hpp"
+#include "ntt.hpp"
 #include <vector>
 #include <math.h> // acos
 #include <algorithm> // std::swap
@@ -23,9 +24,6 @@ namespace zeno {
 
 namespace fft {
 
-    size_t compute_convolution_size(size_t n, size_t m) {
-        return (1u << internal::ceil_log2(n + m - 1));
-    }
 
 
     using ftype = long double;
@@ -43,8 +41,8 @@ namespace fft {
             a0[i] = a[2*i];
             a1[i] = a[2*i + 1];
         }
-        fft(a0, inverse);
-        fft(a1, inverse);
+        fft_complex(a0, inverse);
+        fft_complex(a1, inverse);
 
         T angle = 2 * PI / n * (inverse ? -1 : +1);
         complex<T> wn(cos(angle), sin(angle)), w(1);
@@ -62,7 +60,7 @@ namespace fft {
     template<typename T>
     void inv_fft_complex(std::vector<T> &a) { fft_complex(a, true); }
 
-    template<typename T>
+    template<typename T = long double>
     std::vector<T> convolution_fft_complex(std::vector<T> const &a, std::vector<T> const &b) {
         if(a.empty() || b.empty()) return {};
 
@@ -98,7 +96,6 @@ namespace fft {
         fft(a, true); 
     }
 
-    const int magic_number = 0; // 60;
 
     template<typename T>
     std::vector<T> convolution_wcut(std::vector<T> a, std::vector<T> b) {
@@ -108,7 +105,7 @@ namespace fft {
         size_t N = compute_convolution_size(na, nb);
 
 
-        T cut = zeno::pow(T(2), sizeof(T) * 4u);
+        T cut = zeno::internal::pow(T(2), sizeof(T) * 4u);
 
         // Az(x) = A1(x) + iA2(x) = (A%cut)(x) + i(A/cut)(x)   [same for B(x)]
         std::vector<complex<ftype>> Az(N), Bz(N);
@@ -180,35 +177,38 @@ namespace fft {
         return fa;
     }
 
-    template <typename T>
-     std::vector<T> convolution_naive(std::vector<T> const &a, std::vector<T> const &b) {
-        if (a.empty() || b.empty()) return {};
-        size_t n = a.size(), m = b.size();
-        std::vector<T> ret(n + m - 1);
-        for (int i = 0; i < n; ++i)
-            for (int j = 0; j < m; ++j) 
-                ret[i + j] += a[i] * b[j];
-        return ret;
-    }
-
-    template <typename T>
-    std::vector<T> convolution(std::vector<T> const &a, std::vector<T> const &b) {
-        if (std::min(a.size(), b.size()) <= magic_number) 
-            return convolution_naive(a, b);
-        if(zeno::is_modular_v<T>) {
-            // ntt
-        } 
-        /* 
-        else if(std::is_integral_v<T>) {
-            // strassen ??? 
-            std::vector<bigint> A(a), B(b), R;
-            R = convolution_
-        } 
-        */
-        return convolution_fft_complex<T>(a, b);
-    }
+    const size_t magic_number = 0; // 60;
 
 } // namespace fft
+
+
+template <typename T>
+    std::vector<T> convolution_naive(std::vector<T> const &a, std::vector<T> const &b) {
+    if (a.empty() || b.empty()) return {};
+    size_t n = a.size(), m = b.size();
+    std::vector<T> ret(n + m - 1);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < m; ++j) 
+            ret[i + j] += a[i] * b[j];
+    return ret;
+}
+
+template <typename T>
+std::vector<T> convolution(std::vector<T> const &a, std::vector<T> const &b) {
+    if (std::min(a.size(), b.size()) <= fft::magic_number) 
+        return convolution_naive(a, b);
+    if(zeno::is_modular_v<T>) {
+        return fft::convolution_ntt(a, b);
+    } 
+    /* 
+    else if(std::is_integral_v<T>) {
+        // strassen ??? 
+        std::vector<bigint> A(a), B(b), R;
+        R = convolution_
+    } 
+    */
+    return fft::convolution_fft_complex(a, b);
+}
 
 } // namespace zeno
 

@@ -30,6 +30,10 @@ public:
         if (x < 0) x += mod();
         v = static_cast<uZ>(x);
     }
+
+    template <typename T, std::enable_if_t<!std::is_integral<T>::value>* = nullptr>
+    static_modular(T vv): static_modular(static_cast<int64_t>(vv)) { }
+
     operator int() const { return v; }
     uZ val() { return v; }
 
@@ -75,7 +79,6 @@ public:
             assert(mul != modular(0));
             assert(ret != modular(0));
         }
-        assert(ret * modular(*this) == modular(1));
         return ret;
     }
 
@@ -106,7 +109,7 @@ public:
 };
 
 
-template <typename Z>
+template <typename Z = int64_t>
 class dynamic_modular {
     static_assert(std::is_integral<Z>::value, "Template parameter Z must be integral.");
     using modular = dynamic_modular;
@@ -122,8 +125,8 @@ public:
         assert(1 <= m);
         MOD = m;
     }
-    static Z cardinality() { return mod(); }
-    static Z size() { return mod(); }
+    Z cardinality() { return mod(); }
+    Z size() { return mod(); }
 
     dynamic_modular(): v(0), MOD(2) {}
     dynamic_modular(Z m) : MOD(m) {}
@@ -133,6 +136,9 @@ public:
         if (x < 0) x += mod();
         v = static_cast<uZ>(x);
     }
+    template <typename T, std::enable_if_t<!std::is_integral<T>::value>* = nullptr>
+    dynamic_modular(T vv): dynamic_modular(static_cast<int64_t>(vv)) { }
+
     operator int() const { return v; }
     uZ val() { return v; }
 
@@ -179,6 +185,8 @@ public:
 
     modular inv() const {
         assert(v != 0);
+        
+        // TODO: check dynamically if prime
 
         int64_t a = v, b = mod(), u = 1, v = 0, t;
         while (b > 0) {
@@ -211,7 +219,7 @@ template<typename Z>
 struct is_modular<zeno::dynamic_modular<Z>> : std::true_type {};
 
 template<typename T>
-inline constexpr bool is_modular_v = is_modular<T>::value {};
+inline constexpr bool is_modular_v = is_modular<T>::value;
 
 
 template<int M>

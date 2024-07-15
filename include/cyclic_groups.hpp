@@ -3,6 +3,7 @@
 
 #include "modular.hpp"
 #include "primality.hpp"
+#include "internal.hpp"
 #include "misc.hpp"
 #include <vector>
 
@@ -17,16 +18,16 @@ Z get_order(G g) {
     Z e = h, i = 0;
     G g1;
     for(int i = 0; i < p.size(); i++) {
-        e = e / zeno::pow(p, v);
-        g1 = zeno::pow(g, e);
+        e = e / internal::pow(p, v);
+        g1 = internal::pow(g, e);
         while(g1 != G(1)) {
-            g1 = zeno::pow(g1, p[i]);
+            g1 = internal::pow(g1, p[i]);
             e = e * p[i];
         }
     }
     return e;
-
 }
+
 
 // Given an odd prime p, return a primitive root modulo p
 template<class Z = int64_t>
@@ -34,13 +35,14 @@ Z primitive_root(Z p) {
     std::vector<Z> fp, fv;
     primality::standard_factorize(p-1, fp, fv);
 
-    for(mint a(1, p); a < p; a++) {
-        int i;
-        for(i = 1; i < (int)fp.size(); i++) {
-            mint e(zeno::pow(a, (p-1) / fp[i]), p);
-            if(e == 1) break;
-        } 
-        if(i >= (int)fp.size()) return a;
+    for(Z i = 2; i < p; i++) {
+        bool ok = true;
+        for(auto &f: fp) 
+            if(internal::binary_exponentiation_mod<Z>(i, (p - 1) / f, p) == 1) {
+                ok = false;
+                break;
+            }
+        if(ok) return i;
     }
 
     return 0;

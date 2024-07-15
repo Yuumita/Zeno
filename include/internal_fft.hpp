@@ -19,6 +19,10 @@ namespace zeno {
 
 namespace fft {
 
+    size_t compute_convolution_size(size_t n, size_t m) {
+        return (size_t(1) << internal::ceil_log2(n + m - 1));
+    }
+
     /// @brief Complex numbers struct
     template<typename T>
     struct complex { 
