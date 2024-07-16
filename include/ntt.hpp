@@ -84,14 +84,8 @@ public:
         }
     }
 
-    const std::vector<M> &roots() const {
-        return w;
-    }
-
-    const std::vector<M> &iroots() const {
-        return iw;
-    }
-
+    const std::vector<M> &roots()  const { return w; }
+    const std::vector<M> &iroots() const { return iw; }
 
 };
 
@@ -99,13 +93,10 @@ template <class M>
 void ntt(std::vector<M> &a, bool inverse = false) {
     static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
 
-
     size_t n = a.size(), s = 0;
     if(n <= 1) return;
     while((1 << s) < n) s++;
     assert(n == (1 << s));
-
-
 
     NumberTheoreticTransform<M> ntt_info = NumberTheoreticTransform<M>::get_info();
     const std::vector<M> &root = ntt_info.roots(), &iroot = ntt_info.iroots();
@@ -122,22 +113,9 @@ void ntt(std::vector<M> &a, bool inverse = false) {
             std::swap(a[i], a[j]);
     }
 
-    for (size_t l = 1; (size_t(1) << l) <= n; l++) {
+    for (size_t l = 1; l <= s; l++) {
         size_t len = size_t(1) << l;
-        assert(l < root.size());
         M wlen = inverse ? iroot[l] : root[l];
-
-        M wlenT = inverse ? ntt_info.get_g().pow(ntt_info.get_c()).inv() : ntt_info.get_g().pow(ntt_info.get_c());
-        for(size_t i = len; i < (size_t(1) << ntt_info.get_ordlog()); i <<= 1) {
-            wlenT = wlenT * wlenT;
-        }
-        assert(wlenT == wlen);
-
-        assert(wlen.pow(len) == M(1));
-        for(int i = 1; i < len; i++) 
-            assert(wlen.pow(i) != M(1));
-
-
         for (size_t i = 0; i < n; i += len) {
             M w(1);
             for(size_t j = 0; j < len / 2; j++) {
@@ -178,16 +156,12 @@ std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b)
     fb.resize(N, M(0));
 
     ntt(fa);
-
     ntt(fb);
-
     for(int i = 0; i < N; i++) 
         fa[i] *= fb[i];
-
     inv_ntt(fa);
 
     fa.resize(n + m - 1);
-
     return fa;
 }
 

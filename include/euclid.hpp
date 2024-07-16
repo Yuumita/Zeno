@@ -6,21 +6,12 @@
 
 namespace zeno {
 
-namespace internal {
-
-template<typename Z = int64_t>
-Z inv_gcd(Z a, Z b) { /* Euclid's algorithm */
-    return (b == 0 ? a : gcd(b, a % b));
-}
-    
-} // namespace internal
-    
 
 // Here, Z is any Euclid domain
 
 template<typename Z = int64_t>
 Z gcd(Z a, Z b) { /* Euclid's algorithm */
-    return (b == 0 ? a : gcd(b, a % b));
+    return (b == Z(0) ? a : gcd(b, a % b));
 }
 
 template<typename Z = int64_t>
@@ -61,6 +52,7 @@ Z binary_gcd(Z a, Z b) { /* fast implementation of Euclid's algorithm */
 
 template<typename Z = int64_t>
 Z _gcd(Z a, Z b) { /* Euclid's algorithm */
+static_cast(std::is_integral_v<Z>, "Template parameter Z should be integral for binary_gcd");
     return binary_gcd(a, b);
 }
 

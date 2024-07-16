@@ -1,149 +1,108 @@
-/**
- * @file fps.hpp
- * @author Yuumita
- * @brief Formal Power Series Interface
- * @version 0.1
- * @date 2023-03-15
- * 
- * @copyright Copyright (c) 2023
- * 
- */
-
-#ifndef ZENO_POLY_HPP
-#define ZENO_POLY_HPP
+#ifndef ZENO_FPS_HPP
+#define ZENO_FPS_HPP
 
 #include <vector>
 #include <iostream>
 #include <assert.h>
 #include <algorithm> // std::min
 
-#include "fft.hpp"
+#include "convolution.hpp"
 #include "internal.hpp"
 
 
 namespace zeno {
 
-/// @brief The Polynomial class
 /// @tparam R The type of coefficients
 template<typename R>
-class FormalPowerSeries {
+class FormalPowerSeries : public std::vector<R> {
     using FPS = FormalPowerSeries;
-private:
-    /// @brief Coefficients of the polynomial
-    std::vector<R> a;
 public:
-    /// @brief Reduce the 0 coefficients of the Polynomial (i.e remove all trailing zeroes)
+    /// @brief Reduce the 0 coefficients of the FPS (i.e remove all trailing zeroes)
     void normalize(){
-        while(!this->a.empty() && this->a.back() == R(0))
-            this->a.pop_back();
+        while(!this->empty() && this->back() == R(0))
+            this->pop_back();
     }
-    /// @brief Construct a new Polynomial object with degree -1 (No coefficients) 
-    FPS(): a({}) {}
+    /// @brief Constructs a new FPS object with degree -1 (no coefficients) 
+    FPS(): (*this)({}) {}
 
-    /// @brief Construct a new Polynomial object with coefficients from the list coefs 
-    /// @param coefs The coefficient list
-    /// @param n The size of the list
-    FPS(const int n, const R *coefs) {
-        this->a.resize(n);
-        for(int i = 0; i < n; i++) a[i] = coefs[i];
-        this->normalize();
-    }
-
-    /// @brief Construct a new Polynomial object with coefficients from the array coefs 
-    ///  
-    /// @param coefs The coefficient array
+    /// @brief Constructs a new FPS object with coefficients from the array coefs 
     FPS(const std::vector<R> &coefs): a(coefs) {
         this->normalize();
     }
 
-    /// @brief Construct a new (constant, i.e of 0 degree) Polynomial object which is just v
-    /// @param v The value of the constant polynomial
+    /// @brief Constructs a new (constant, i.e of 0 degree) FPS object which is just v
     FPS(const R &v) {
-        this->a.assign(1, v);
+        this->assign(1, v);
         this->normalize();
     }
 
-    /// @brief Construct a new Polynomial object of degree n-1 with initial values v 
-    /// @param n The coefficient count
-    /// @param v The value to initialize the coefficients
+    /// @brief Constructss a new FPS object of degree n-1 with initial values v 
     FPS(const int n, const R &v) {
-        this->a.resize(n);
+        this->resize(n);
         for(int i = 0; i < n; i++) a[i] = v;
     }
 
-    /// @brief Return the degree of the polynomial (-1 if there aren't any coefficients)
-    /// @return int The degree of the polynomial
+    /// @brief Returns the degree of the FPS (-1 if the FPS is zero)
     int deg() const {
-        return this->a.size() - 1;
+        return this->size() - 1;
     }
 
+    /// @brief Returns the order of the FPS (-1 if the FPS is zero)
     int ord() const {
         for(int i = 0; i < a.size(); i++) 
-            if(a[i] != 0) return i;
+            if(this->at(i) != R(0)) return i;
         return -1;
     }
 
     int is_zero() const {
-        return this->a.empty();
+        return this->empty();
     }
 
-    /// @brief Get the coefficient of x^i
-    /// @param i The index of the coefficient
-    /// @return R The coefficient
+    /// @brief Returns a copy of the coefficient of x^i
     R get(const int i) const {
-        return (0 <= i && i <= deg() ? this->a[i] : R(0));
+        return (0 <= i && i <= deg() ? this->at(i) : R(0));
     }
 
-    /// @brief Set the coefficient of x^i
-    /// @param i The index of the coefficient
-    /// @param c The value of the new coefficient
+    /// @brief Sets the coefficient of x^i
     void set(const int i, const R c) {
         assert(0 <= i);
-        if(this->a.size() <= i) this->a.resize(i+1);
-        this->a[i] = c;
+        if(this->size() <= i) this->resize(i+1, R(0));
+        this->at(i) = c;
     }
 
-    void resize(const int i) {
-        if(deg() < i) this->a.resize(i + 1);
-    }
-
+    /// @brief Returns a copy of the leading coefficient
     R leadcoef() const {
-        if(this->a.size() == 0) return 0;
-        return this->a.back();
+        if(this->empty()) return 0;
+        return this->back();
     }
 
 
-    /// @brief Addition of two polynomials (*this and P)
-    /// @param P The other polynomial
-    /// @return FPS& The resulting polynomial
-    FPS plus(const FPS& P) const {
+    /// @brief Addition of two FPSs (*this and P)
+    FPS plus(const FPS &P) const {
         return *this + P;
     }
 
 
-    /// @brief Multiplication of two polynomials (*this and P)
-    /// @return FPS& The resulting polynomial
-    FPS times(const FPS& P) const {
+    /// @brief Multiplication of two FPSs (*this and P)
+    FPS times(const FPS &P) const {
         return *this * P;
     }
 
-    /// @brief Multiplication of this polynomial with the scalar v
-    /// @return FPS The resulting polynomial
-    FPS times(const R& v) const {
+    /// @brief Multiplication of this FPS with the scalar v
+    FPS times(const R &v) const {
         return *this * v;
     }
 
-    /// @brief Subtraction of two polynomials (*this - P)
-    /// @return FPS The resulting polynomial
-    FPS minus(const FPS& P) const {
+    /// @brief Subtraction of two FPSs (*this - P)
+    FPS minus(const FPS &P) const {
         return *this - P;
     }
 
     FPS& operator+=(const FPS &rhs) {
         int d = (this->deg() > rhs.deg() ? this->deg() : rhs.deg());
-        this->a.resize(d);
-        for(int i = 0; i < (int)rhs.a.size(); i++){
-            this->a[i] += rhs.a[i];
+        this->resize(d);
+        for(int i = 0; i < (int)rhs.size(); i++){
+            this->at(i) += rhs[i];
         }
         this->normalize();
         return *this;
@@ -151,9 +110,9 @@ public:
 
     FPS& operator-=(const FPS &rhs) {
         int d = (this->deg() > rhs.deg() ? this->deg() : rhs.deg());
-        this->a.resize(d + 1);
-        for(int i = 0; i < (int)rhs.a.size(); i++){
-            this->a[i] -= rhs.a[i];
+        this->resize(d + 1);
+        for(int i = 0; i < (int)rhs.size(); i++){
+            this->at(i) -= rhs[i];
         }
         this->normalize();
         return *this;
@@ -166,7 +125,7 @@ public:
     }
 
     FPS& operator*=(const R &rhs) {
-        for(auto &e: this->a) e *= rhs;
+        for(auto &e: this) e *= rhs;
         this->normalize();
         return *this;
     }
@@ -176,7 +135,7 @@ public:
     }
 
     FPS& operator/=(const R &rhs) {
-        for(auto &e: this->a) e /= rhs;
+        for(auto &e: this) e /= rhs;
         return *this;
     }
 
@@ -193,7 +152,8 @@ public:
     // }
 
     FPS operator-() const {
-        auto t = *this;
+        FPS t = FPS(this->size());
+        for(int i = 0; i < this->size(); i++) t
         for(auto &e: t.a) e = -e;
         return t;
     }
@@ -201,34 +161,34 @@ public:
     FPS operator+(const FPS &rhs) const { return FPS(*this) += rhs; }
     FPS operator-(const FPS &rhs) const { return FPS(*this) -= rhs; }
     FPS operator*(const FPS &rhs) const { return FPS(*this) *= rhs; }
-    FPS operator*(const R &rhs)    const { return FPS(*this) *= rhs; }
+    FPS operator*(const R &rhs)   const { return FPS(*this) *= rhs; }
     FPS operator/(const FPS &rhs) const { return FPS(*this) /= rhs; }
-    FPS operator/(const R &rhs)    const { return FPS(*this) /= rhs; }
+    FPS operator/(const R &rhs)   const { return FPS(*this) /= rhs; }
     FPS operator%(const FPS &rhs) const { return FPS(*this) %= rhs; }
 
     // mutable reference of the coefficient
-    R& coef(size_t index) { return this->a[index]; }
+    R& coef(size_t index) { return this->at(index); }
 
-    bool operator == (const FPS &rhs) const { return a == rhs.a; }
-    bool operator != (const FPS &rhs) const { return a != rhs.a; }
+    // bool operator == (const FPS &rhs) const { normalize(); return *this == rhs; }
+    // bool operator != (const FPS &rhs) const { normalize(); return *this != rhs; }
 
-    /// @return FPS A copy of this polynomial mod x^k (getting the first k coefficients)
+    /// @return FPS A copy of this FPS mod x^k (getting the first k coefficients)
     FPS mod_xk(int k) const {
-        return FPS(std::vector<R>(a.begin(), a.begin() + std::min(k, (int)a.size())));
+        return FPS(std::vector<R>(this->begin(), this->begin() + std::min(k, (int)this->size())));
     }
     inline static FPS mod_xk(FPS &f, int k) const { return f.mod_xk(k); }
 
-    /// @return FPS A copy of this polynomial times x^k (coefficients shifted k steps to the right)
+    /// @return FPS A copy of this FPS times x^k (coefficients shifted k steps to the right)
     FPS times_xk(int k) const {
-        std::vector<int> coefs = this->a;
-        coefs.insert(coefs.begin(), k, 0);
+        std::vector<R> coefs = *this;
+        coefs.insert(coefs.begin(), k, R(0));
         return FPS(coefs);
     }
     inline static FPS times_xk(FPS &f, int k) const { return f.times_xk(k); }
 
-    /// @return FPS A copy of this polynomial with coefficients shifted k steps to the left
+    /// @return FPS A copy of this FPS with coefficients shifted k steps to the left
     FPS floordiv_xk(int k) const {
-        return FPS(std::vector<R>(a.begin() + k, a.end()));
+        return FPS(std::vector<R>(this->begin() + k, this->end()));
     }
     inline static FPS floordiv_xk(FPS &f, int k) const { return f.floordiv_xk(k); }
 
@@ -244,8 +204,8 @@ public:
 
     /// @return FPS P(x^{1/2})
     FPS sqrt_x() const {
-        std::vector<R> ret(this->a.size(), R(0));
-        for(int i = 0; i < this->a.size(); i++)
+        std::vector<R> ret(this->size(), R(0));
+        for(int i = 0; i < this->size(); i++)
             ret[i] = get(2*i);
         return FPS(ret);
     }
@@ -253,14 +213,14 @@ public:
 
     /// @return FPS P(x^2)
     FPS sqr_x() const {
-        std::vector<R> ret(2 * this->a.size(), R(0));
-        for(int i = 0; i < this->a.size(); i++)
+        std::vector<R> ret(2 * this->size(), R(0));
+        for(int i = 0; i < this->size(); i++)
             ret[2*i] = this->a[i];
         return FPS(ret);
     }
     inline static FPS sqr_x(FPS &f) const { return f.sqr_x(); }
 
-    /// @return FPS The multiplicative inverse of this polynomial mod x^m
+    /// @return FPS The multiplicative inverse of this FPS mod x^m
     FPS inv(int m = deg() + 1) const {
         assert(get(0) != R(0));
         if(m == 0) return FPS(0);
@@ -282,14 +242,14 @@ public:
     }
     inline static FPS inv(FPS &f, int m = deg() + 1) const { return f.inv(m); }
 
-    /// @return FPS  A copy of this polynomial with coefficients reversed
+    /// @return FPS  A copy of this FPS with coefficients reversed
     FPS reverse() const {
-        return FPS(std::vector<R>(a.rbegin(), a.rend()));
+        return FPS(std::vector<R>(this->rbegin(), this->rend()));
     }
     inline static FPS reverse(FPS &f) const { return f.reverse(Q); }
 
-    /// @brief Euclidean division of this polynomial with the polynomial P
-    /// @return pair<FPS, FPS> the quotiend (first) and remainder (second) polynomials
+    /// @brief Euclidean division of this FPS with the FPS P
+    /// @return pair<FPS, FPS> the quotiend (first) and remainder (second) FPSs
     std::pair<FPS, FPS> div(const FPS &P) const {
         assert(!P.is_zero());
         if(P.deg() > this->deg())
@@ -302,12 +262,12 @@ public:
     inline static std::pair<FPS, FPS> div(FPS &f, const FPS &Q) const { return f.div(Q); }
 
     /// @brief component-wise multiplication with v^k
-    /// @return FPS A copy of the polynomial with the x value scaled by v
+    /// @return FPS A copy of the FPS with the x value scaled by v
     FPS scale_x(const R &v) const {
         R c = 1;
         FPS P(*this);
         for(int i = 0; i <= P.deg(); i++, c *= v) { 
-            P.coef(i) *= c;
+            P[i] *= c;
         }
         return  P;
     }
@@ -321,10 +281,10 @@ public:
         std::vector<R> res(deg() - k +  1, R(0));
         if(k == 1) {
             for(int i = 1; i <= deg(); i++)
-                res[i - 1] = get(i) * R(i);
+                res[i - 1] = this->at(i) * R(i);
         } else {
             for(int i = k; i <= deg(); i++)
-                res[i - k] = get(i) * internal::fact<R>(i) / internal::fact<R>(i - k);
+                res[i - k] = this->at(i) * internal::fact<R>(i) / internal::fact<R>(i - k);
         }
         return FPS(res);
     }
@@ -332,33 +292,29 @@ public:
     inline static FPS deriv(FPS &f, int k = 1) const { return f.deriv(k); }
 
 
-    /// @return The integral of the polynomial (with constant 0)
+    /// @return The integral of the FPS (with constant 0)
     FPS integr() const {
         std::vector<R> res(deg() + 2);
         for(int i = 1; i <= deg() + 1; i++) {
-            res[i] = get(i-1) / i;
+            res[i] = this->at(i-1) / i;
         }
         return FPS(res);
     }
     inline static FPS integr(FPS &f) const { return f.integr(k); }
 
-    /// @return The (natural) logarithm of the polynomial (mod x^m)
+    /// @return The (natural) logarithm of the FPS (mod x^m)
     FPS log(int m) const { return (FPS(*this).deriv().mod_xk(m) * FPS(*this).inv(m)).mod_xk(m);  }
 
     inline static FPS log(FPS &f, int m) const { return f.log(m); }
 
     FPS exp(int m) const {
         assert(get(0) == 0);
-        std::cerr << "T0" << std::endl;
         FPS Q(1), P(*this);
         P.coef(0) += 1;
         for(int i = 1; i < m; i *= 2) { // at the end of each step: F = e^P (mod x^{2^{i+1}})
-            std::cerr << "T0.5" << std::endl;
             // Q = (Q * (P - Q.log(2*i))).mod_xk(2*i);
             Q = (Q * (P - Q.mod_xk(2*i))).mod_xk(2*i);
-            std::cerr << "T0.8" << std::endl;
         }
-        std::cerr << "T1" << std::endl;
         return Q.mod_xk(m);
     }
 
@@ -370,19 +326,19 @@ public:
 
     inline static FPS sqrt(FPS &f, int m) const { return f.sqrt(m); }
 
-    /// @brief Evaluate the polynomial at point x0
-    /// @return The value of the polynomial at point x0 
+    /// @brief Evaluate the FPS at point x0
+    /// @return The value of the FPS at point x0 
     R eval(R x0) const {
         R y(0);
         for(int i = this->deg(); i >= 0; i--) {
-            y = (x0 * y) + a[i];
+            y = (x0 * y) + this->at(i);
         }
         return y;
     }
 
 
-    /// @brief Builds the polynomial evaluation tree.
-    /// @return The polynomial P(x) = (x - x_L) (x - x_{L+1}) ... (x - x_R)
+    /// @brief Builds the FPS evaluation tree.
+    /// @return The FPS P(x) = (x - x_L) (x - x_{L+1}) ... (x - x_R)
     static FPS<R> build_poly_tree(std::vector<FPS<R>> &tree, 
         int v, typename std::vector<R>::iterator l, typename std::vector<R>::iterator r) {
             if(r - l == 1) {
@@ -407,8 +363,8 @@ public:
             }
         }
 
-    /// @brief Evaluate the polynomial in points x0, x1, ..., x_{n-1}
-    /// @return The value of the polynomial at points x0, x1, ..., x_{n-1}
+    /// @brief Evaluate the FPS in points x0, x1, ..., x_{n-1}
+    /// @return The value of the FPS at points x0, x1, ..., x_{n-1}
     std::vector<R> eval(std::vector<R> const &x) const {
         int n = x.size();
         if(is_zero()) return std::vector<R>(n, R(0));
@@ -441,42 +397,68 @@ public:
     }
 
 
-    /// @return The Borel transformation of the polynomial (a_k x^k -> a_k / k! x^k)
+    /// @return The Borel transformation of the FPS (a_k x^k -> a_k / k! x^k)
     FPS<R> borel() const {
-        FPS<R> ret = *this;
+        FPS<R> ret = FPS(*this);
         for(int k = 0; k <= deg(); k++)
-            ret->a[k] /= internal::fact(k);
+            ret[k] /= internal::fact(k);
         return ret;
     }
 
-    /// @return The inverse Borel (Laplace) transformation of the polynomial (a_k x^k -> k!a_k x^k)
+    /// @return The inverse Borel (Laplace) transformation of the FPS (a_k x^k -> k!a_k x^k)
     FPS<R> invborel() const {
-        FPS<R> ret = *this;
+        FPS<R> ret = FPS(*this);
         for(int k = 0; k <= deg(); k++)
-            ret->a[k] *= internal::fact(k);
+            ret[k] *= internal::fact(k);
         return ret;
+    }
+
+
+    static std::pair<FPS, FPS> euclid_division(FPS const &A, FPS const &B) {
+        return A.div(B);
+    }
+
+    static void euclid_division(FPS const &A, FPS const &B, FPS &Qf, FPS &Rf) {
+        auto [Qf, Rf] = A.div(B);
+    }
+
+    static FPS gcd(FPS const &A, FPS const &B) { // general gcd also works
+        return (B.is_zero() ? A : FPS::gcd(B, A % B));
+    }
+
+    static FPS extended_gcd(FPS const &A, FPS const &B, FPS &U, FPS &V) {
+        FPS D(A), V1 = FPS(0), V3 = FPS(B), T, Q, R;
+        U = FPS(1);
+        while(!V3.is_zero()) {
+            FPS::euclid_division(D, V3, Q, R);
+            T = U - V1 * Q;
+            U = V1, D = V3;
+            V1 = T, V3 = R;
+        }
+        V = (D - A*U) / B;
     }
 
 };
 
 template<class R>
-using FPS = FormalPowerSeries;
-template<class R>
-using Poly = FormalPowerSeries;
+using FPS = FormalPowerSeries<R>;
 
-template<typename R>
-FPS<R> operator*(const R &lhs, const FPS<R> &rhs) {
-    return FPS(rhs) *= lhs;
+template<class R>
+using Poly = FormalPowerSeries<R>;
+
+template<class R>
+FormalPowerSeries<R> operator*(const R &lhs, const FormalPowerSeries<R> &rhs) {
+    return FPS<R>(rhs) *= lhs;
 }
 
-template<typename R>
-FPS<R> operator/(const R &lhs, const FPS<R> &rhs) {
+template<class R>
+FormalPowerSeries<R> operator/(const R &lhs, const FormalPowerSeries<R> &rhs) {
     return FPS(lhs) /= rhs;
 }
 
 
-template<typename R>
-std::ostream& operator<<(std::ostream& os, const FPS<R> &P) {
+template<class R>
+std::ostream& operator<<(std::ostream& os, const FormalPowerSeries<R> &P) {
     os << "[ ";
     for(int i = 0; i <= P.deg(); i++)
         os << P.get(i) << " ";
@@ -484,52 +466,6 @@ std::ostream& operator<<(std::ostream& os, const FPS<R> &P) {
     return os;
 }
 
-namespace polynomial
-{
-
-template<class K>
-void euclid_division(FPS<K> const &A, FPS<K> const &B, FPS<K> &Q, FPS<K> &R) {
-    R = A, Q = FPS<K>(0);
-    while(R.deg() >= B.deg()) {
-        K s = R.leadcoef() / B.leadcoef();
-        int sd = R.deg() - B.deg();
-
-        Q.set(sd, Q.get(sd) + s);
-        R = R - s * B.shift(sd);
-    }
-}
-
-template<class K>
-std::pair<FPS<K>, FPS<K>> euclid_division(FPS<K> const &A, FPS<K> const &B) {
-    FPS<K> Q, R;
-    polynomial::euclid_division(A, B, Q, R);
-    return {Q, R};
-}
-
-template<class K>
-FPS<K> gcd(FPS<K> const &A, FPS<K> const &B) {
-    if(B == FPS<K>(0)) return A;
-    FPS<K> Q, R;
-    polynomial::euclid_division(A, B, Q, R);
-    return polynomial::gcd(B, R);
-}
-
-template<class K>
-FPS<K> extended_gcd(FPS<K> const &A, FPS<K> const &B, FPS<K> &U, FPS<K> &V) {
-    FPS<K> D(A), V1 = FPS<K>(0), V3 = FPS<K>(B), T, Q, R;
-    U = FPS<K>(1);
-    while(!V3.zero()) {
-        polynomial::euclid_division(D, V3, Q, R);
-        T = U - V1 * Q;
-        U = V1, D = V3;
-        V1 = T, V3 = R;
-    }
-    V = (D - A*U) / B;
-}
-
-} // namespace polynomial
-
-
 } // namespace zeno
 
-#endif /* End of ZENO_POLY_HPP*/
+#endif /* End of ZENO_FPS_HPP */

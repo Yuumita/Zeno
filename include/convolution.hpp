@@ -86,19 +86,56 @@ namespace fft {
         return ans;
     }
 
-    template<typename T>
-    void fft(std::vector<T> &a, bool inverse = false) {
-        
+    /// @tparam F A field
+    template<typename F>
+    void fft(std::vector<F> &a, std::vector<F> &root, std::vector<F> &iroot, bool inverse = false) {
+        size_t n = a.size(), s = 0;
+        if(n <= 1) return;
+        while((1 << s) < n) s++;
+        assert(n == (1 << s));
+
+        // bit-reverse
+        for(int i = 1, j = 0; i < n; i++) { // j = bit_reverse(i, log n)
+            // j := bit_reverse(i+1) == this_loop(bit_reverse(i)): from msb to lsb flip the trailing 1s and the next 0
+            int bit = n >> 1;
+            for(; j & bit; bit >>= 1)
+                j ^= bit;
+            j ^= bit;
+
+            if(i < j) 
+                std::swap(a[i], a[j]);
+        }
+
+        for (size_t l = 1; l <= s; l++) {
+            size_t len = size_t(1) << l;
+            F wlen = inverse ? iroot[l] : root[l];
+            for (size_t i = 0; i < n; i += len) {
+                F w(1);
+                for(size_t j = 0; j < len / 2; j++) {
+                    F u = a[i + j];
+                    F v = a[i + j + len / 2] * w;
+                    a[i + j] = u + v;
+                    a[i + j + len / 2] = u - v;
+                    w *= wlen;
+                }
+            }
+        }
+
+        if(inverse) {
+            for(F &e: a)
+                e /= M(n);
+        }
+
     }
 
-    template<typename T>
-    void inv_fft(std::vector<T> &a) { 
+    template<typename F>
+    void inv_fft(std::vector<F> &a, std::vector<F> &root, std::vector<F> &iroot) { 
         fft(a, true); 
     }
 
 
     template<typename T>
-    std::vector<T> convolution_wcut(std::vector<T> a, std::vector<T> b) {
+    std::vector<T> convolution_wcut(std::vector<T> const &a, std::vector<T> const &b) {
         if(a.empty() || b.empty()) return {};
 
         size_t na = size_t(a.size()), nb = size_t(b.size());
