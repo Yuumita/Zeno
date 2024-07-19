@@ -7,54 +7,156 @@
 #include <assert.h>
 #include <algorithm> // std::min
 
-#include "convolution.hpp"
+#include "fps.hpp"
 #include "internal.hpp"
 
 
 namespace zeno {
 
 template <class R>
-class FastSubsetConvolution {
+class SetPowerSeries {
     
+    /// @brief Performs the zeta transform of f:2^[n]->R in O(n2^n).
     static void zeta(std::vector<R> &f) const {
-        size_t n = f.size();
-        assert(n & (n - 1) == 0); // power of two
-        for(int j = 1; j < n; j <<= 1) {
-            for(int S = 0; S < n; S++)  {
+        size_t N = f.size();
+        assert(N & (N - 1) == 0); // power of two
+        for(int j = 1; j < N; j <<= 1) {
+            for(int S = 0; S < N; S++)  {
                 if(S & j)  
                     f[S] += f[S ^ j];
             }
         }
     }
 
+    /// @brief Performs the mobius transform of f:2^[n]->R in O(n2^n).
     static void mobius(std::vector<R> &f) const {
-        size_t n = f.size();
-        assert(n & (n - 1) == 0); // power of two
-        for(int j = n >> 1; j >= 1; j >>= 1) {
-            for(int S = n - 1; S >= 0; S--)  {
-                if((i & j) == 0) 
+        size_t N = f.size();
+        assert(N & (N - 1) == 0); // power of two
+        for(int j = N >> 1; j >= 1; j >>= 1) {
+            for(int S = N - 1; S >= 0; S--)  {
+                if(S & j) 
                     f[S] -= f[S ^ j];
             }
         }
     }
 
-    static std::vector<R> or_convolution(std::vector<R> f, std::vector<R> g) {
-        size_t n = f.size();
-        assert(n == g.size() && (n &(n-1)) == 0);
+
+    /// @brief Computes the OR convolution (union product) of f,g:2^[n]->R in O(n2^n).
+    static std::vector<R> or_convolution(std::vector<R> f, std::vector<R> g) const {
+        size_t N = f.size();
+        assert(N == g.size() && (N &(N-1)) == 0);
 
         zeta(f);
         zeta(g);
-        for(int S = 0; S < n; S++) f[S] *= g[S];
+        for(int S = 0; S < N; S++) f[S] *= g[S];
         mobius(f);
 
         return f;
     }
 
+    /// @brief Computes the subset convolution of f,g:2^[n]->R in O(n^2 2^n).
+    static std::vector<R> subset_convolution(std::vector<R> f, std::vector<R> g) const {
+        size_t N = f.size();
+        assert(N == g.size() && (N &(N-1)) == 0);
+        size_t n = internal::ceil_log2(N);
+
+        std::vector<int> pc(N);
+        for(int S = 0; S < N; S++) 
+            pc[S] = internal::popcount(S);
+
+        std::vector<FormalPowerSeries<R>> fx, gx;
+        for(int S = 0; S < N; S++) {
+            fx.coef(pc[S]) = f[S];
+            gx.coef(pc[S]) = g[S];
+        }
+
+        zeta(fx);
+        zeta(gx);
+        for(int S = 0; S < N; S++)
+            fx[S] *= gx[S];
+        mobius(fx);
+
+        for(int S = 0; S < N; S++)
+            f[S] = fx.coef(pc[S]);
+
+        return f;
+    }
+
+
+    /// @brief Computes the super zeta transform of f:2^[n]->R in O(n2^n).
+    static void super_zeta(std::vector<R> &f) const {
+        size_t N = f.size();
+        assert(N & (N - 1) == 0); // power of two
+        for(int j = 1; j < N; j <<= 1) {
+            for(int S = 0; S < N; S++)  {
+                if((S & j) == 0)  
+                    f[S] += f[S ^ j];
+            }
+        }
+    }
+
+    /// @brief Computes the super mobius transform of f:2^[n]->R in O(n2^n).
+    static void super_mobius(std::vector<R> &f) const {
+        size_t N = f.size();
+        assert(N & (N - 1) == 0); // power of two
+        for(int j = N >> 1; j >= 1; j >>= 1) {
+            for(int S = N - 1; S >= 0; S--)  {
+                if((S & j) == 0) 
+                    f[S] -= f[S ^ j];
+            }
+        }
+    }
+
+    /// @brief Computes the AND convolution (intersection product) of f,g:2^[n]->R in O(n2^n).
+    static std::vector<R> and_convolution(std::vector<R> f, std::vector<R> g) const {
+        size_t N = f.size();
+        assert(N == g.size() && (N &(N-1)) == 0);
+
+        super_zeta(f);
+        super_zeta(g);
+        for(int S = 0; S < N; S++) f[S] *= g[S];
+        super_mobius(f);
+
+        return f;
+    }
+
+    /// @brief Computes the Walsh–Hadamard transform (n-dimensional FFT in GF(2)) of f in O(n2^n).
+    static std::vector<R> walsh_hadamard_transform(std::vector<R> &f, bool inverse = false) const {
+        size_t N = f.size();
+        assert((N &(N-1)) == 0);
+        for(int j = 1; j < N; j <<= 1) {
+            for(int S = 0; S < N; S++) {
+                if((S & j) == 0) {
+                    R u = f[S], v = f[S ^ j];
+                    f[S]     = u + v;
+                    f[S ^ j] = u - v;
+                }
+
+            }
+        }
+
+        if(inverse) {
+            for(auto &e: f) 
+                e /= R(N);
+        }
+    }
+
+
+    /// @brief Computes the XOR convolution of f,g:2^[n]->R in O(n2^n).
+    static std::vector<R> and_convolution(std::vector<R> f, std::vector<R> g) const {
+        size_t N = f.size();
+        assert(N == g.size() && (N &(N-1)) == 0);
+
+        walsh_hadamard_transform(f);
+        walsh_hadamard_transform(g);
+        for(int S = 0; S < N; S++) f[S] *= g[S];
+        walsh_hadamard_transform(f, true);
+
+        return f;
+    }
+
+
 };
-
-template <class R>
-using FSC = FastSubsetConvolution;
-
 
 } // namespace zeno
 

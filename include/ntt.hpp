@@ -10,7 +10,7 @@
 #include "internal_fft.hpp"
 #include "modular.hpp"
 #include "convolution.hpp"
-#include "cyclic_groups.hpp"
+#include "groups.hpp"
 #include <algorithm> // std::swap
 
 namespace zeno
@@ -33,15 +33,14 @@ class NumberTheoreticTransform {
 
     mutable std::vector<M> w, iw; // w[i] is the 2^i root of unity and iw[i] is its inverse
 
-
     NumberTheoreticTransform(Z pp) : p(pp), ordlog(__builtin_ctzll(pp-1)) {
         g = M(zeno::primitive_root(p));
         assert(g != M(0));
         w.resize(ordlog + 1);
         iw.resize(ordlog + 1);
 
-        // assert((p - 1) / (Z(1) << ordlog) * (Z(1) << ordlog) + 1 == p);
         
+    
         c = (p-1)/(Z(1) << ordlog);
         w[ordlog] = g.pow(c); 
         iw[ordlog] = w[ordlog].inv();
@@ -49,6 +48,17 @@ class NumberTheoreticTransform {
             w[i] = w[i + 1] * w[i + 1];
             iw[i] = w[i].inv();
         }
+
+        assert((p - 1) / (Z(1) << ordlog) * (Z(1) << ordlog) + 1 == p);
+
+        for(int j = 1; j <= ordlog; j++) {
+            assert(w[j].pow((1ll << j)) == 1);
+            for(int i = 1; i < j; i++) {
+                assert(w[j].pow((1ll << i)) != 1);
+            }
+        }
+
+        std::cerr << p << ", " << g << ", " << c <<", " << ordlog << std::endl;
 
         assert(w[0] == M(1));
 
@@ -87,63 +97,56 @@ public:
     const std::vector<M> &roots()  const { return w; }
     const std::vector<M> &iroots() const { return iw; }
 
-};
 
-template <class M>
-void ntt(std::vector<M> &a, bool inverse = false) {
-    static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
+    void transform(std::vector<M> &a, bool inverse = false) {
+        static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
 
-    size_t n = a.size(), s = 0;
-    if(n <= 1) return;
-    while((1 << s) < n) s++;
-    assert(n == (1 << s));
+        size_t n = a.size(), s = 0;
+        if(n <= 1) return;
+        while((1 << s) < n) s++;
+        assert((n & (n - 1)) == 0); // power of 2
 
-    NumberTheoreticTransform<M> ntt_info = NumberTheoreticTransform<M>::get_info();
-    const std::vector<M> &root = ntt_info.roots(), &iroot = ntt_info.iroots();
-
-    // bit-reverse
-    for(int i = 1, j = 0; i < n; i++) { // j = bit_reverse(i, log n)
-        // j := bit_reverse(i+1) == this_loop(bit_reverse(i)): from msb to lsb flip the trailing 1s and the next 0
-        int bit = n >> 1;
-        for(; j & bit; bit >>= 1)
+        // bit-reverse
+        for(int i = 1, j = 0; i < n; i++) { // j = bit_reverse(i, log n)
+            // j := bit_reverse(i+1) == this_loop(bit_reverse(i)): from msb to lsb flip the trailing 1s and the next 0
+            int bit = n >> 1;
+            for(; j & bit; bit >>= 1)
+                j ^= bit;
             j ^= bit;
-        j ^= bit;
 
-        if(i < j) 
-            std::swap(a[i], a[j]);
-    }
+            if(i < j) 
+                std::swap(a[i], a[j]);
+        }
 
-    for (size_t l = 1; l <= s; l++) {
-        size_t len = size_t(1) << l;
-        M wlen = inverse ? iroot[l] : root[l];
-        for (size_t i = 0; i < n; i += len) {
-            M w(1);
-            for(size_t j = 0; j < len / 2; j++) {
-                M u = a[i + j];
-                M v = a[i + j + len / 2] * w;
-                a[i + j] = u + v;
-                a[i + j + len / 2] = u - v;
-                w *= wlen;
+        for (size_t l = 1; l <= s; l++) {
+            size_t len = size_t(1) << l;
+            M wlen = inverse ? iroot[l] : root[l];
+            for (size_t i = 0; i < n; i += len) {
+                M w(1);
+                for(size_t j = 0; j < len / 2; j++) {
+                    M u = a[i + j];
+                    M v = a[i + j + len / 2] * w;
+                    a[i + j] = u + v;
+                    a[i + j + len / 2] = u - v;
+                    w *= wlen;
+                }
             }
         }
-    }
 
-    if(inverse) {
-        for(M &e: a)
-            e /= M(n);
+        if(inverse) {
+            for(M &e: a)
+                e /= M(n);
+        }
     }
-
-}
+    inline void inv_transform(std::vector<M> &a, std::vector<M> const &root, std::vector<M> const &iroot) {
+        static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
+        transform(a, true);
+    }
+};
 
 
 template <class M>
-void inv_ntt(std::vector<M> &a) {
-    static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
-    ntt(a, true);
-}
-
-template <class M>
-std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b) {
+std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b, M p = M(0)) {
     static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
 
     if(a.empty() || b.empty()) return {};
@@ -151,15 +154,18 @@ std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b)
     size_t n = size_t(a.size()), m = size_t(b.size());
     size_t N = zeno::fft::compute_convolution_size(n, m);
 
+    NumberTheoreticTransform<M> ntt = NumberTheoreticTransform<M>::get_info(p.mod());
+    assert(N <= (size_t(1) << ntt.roots().size()));
+
     std::vector<M> fa(a.begin(), a.end()), fb(b.begin(), b.end());
     fa.resize(N, M(0));
     fb.resize(N, M(0));
 
-    ntt(fa);
-    ntt(fb);
+    ntt.transform(fa);
+    ntt.transform(fb);
     for(int i = 0; i < N; i++) 
         fa[i] *= fb[i];
-    inv_ntt(fa);
+    ntt.inv_transform(fa, true);
 
     fa.resize(n + m - 1);
     return fa;

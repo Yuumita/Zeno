@@ -17,29 +17,38 @@ template<typename R>
 class FormalPowerSeries : public std::vector<R> {
     using FPS = FormalPowerSeries;
 public:
+
     /// @brief Reduce the 0 coefficients of the FPS (i.e remove all trailing zeroes)
     void normalize(){
         while(!this->empty() && this->back() == R(0))
             this->pop_back();
     }
+
     /// @brief Constructs a new FPS object with degree -1 (no coefficients) 
-    FPS(): (*this)({}) {}
+    FormalPowerSeries(): (*this)({}) {}
 
     /// @brief Constructs a new FPS object with coefficients from the array coefs 
-    FPS(const std::vector<R> &coefs): a(coefs) {
+    FormalPowerSeries(const std::vector<R> &coefs): a(coefs) {
         this->normalize();
     }
 
     /// @brief Constructs a new (constant, i.e of 0 degree) FPS object which is just v
-    FPS(const R &v) {
+    FormalPowerSeries(const R &v) {
         this->assign(1, v);
         this->normalize();
+        normalize();
     }
 
     /// @brief Constructss a new FPS object of degree n-1 with initial values v 
-    FPS(const int n, const R &v) {
+    FormalPowerSeries(const int n, const R &v) {
         this->resize(n);
         for(int i = 0; i < n; i++) a[i] = v;
+        normalize();
+    }
+
+    FormalPowerSeries(std::vector<R>::iterator begin, std::vector<R>::iterator end) {
+        this->assign(begin, end);
+        normalize();
     }
 
     /// @brief Returns the degree of the FPS (-1 if the FPS is zero)
@@ -65,6 +74,7 @@ public:
 
     /// @brief Sets the coefficient of x^i
     void set(const int i, const R c) {
+        if(c == R(0)) return;
         assert(0 <= i);
         if(this->size() <= i) this->resize(i+1, R(0));
         this->at(i) = c;
@@ -81,7 +91,6 @@ public:
     FPS plus(const FPS &P) const {
         return *this + P;
     }
-
 
     /// @brief Multiplication of two FPSs (*this and P)
     FPS times(const FPS &P) const {
@@ -166,8 +175,7 @@ public:
     FPS operator/(const R &rhs)   const { return FPS(*this) /= rhs; }
     FPS operator%(const FPS &rhs) const { return FPS(*this) %= rhs; }
 
-    // mutable reference of the coefficient
-    R& coef(size_t index) { return this->at(index); }
+    R coef(size_t index) { return this->get(index); }
 
     // bool operator == (const FPS &rhs) const { normalize(); return *this == rhs; }
     // bool operator != (const FPS &rhs) const { normalize(); return *this != rhs; }
@@ -228,17 +236,6 @@ public:
         for(int i = 1; i < m; i *= 2)
             Q = (Q * R(2) - Q * Q * this->mod_xk(2*i)).mod_xk(2*i);
         return Q.mod_xk(m);
-        /*
-            if(m == 1) return FPS(R(1) / get(0)); 
-            FPS A = this->mod_xk(m);
-            FPS Am = A.scale_x(R(-1));
-            FPS B = Am * A;
-            B = B.sqrt_x().inv((m+1) / 2).sqr_x();
-            std::cerr << "inv (m = " << m << ") --> " << (Am * B).mod_xk(m) << std::endl;
-            std::cerr << A.mod_xk(m) << " * " << (Am*B).mod_xk(m) << " = " << (A*Am*B).mod_xk(m) << std::endl;
-            std::cerr << "inv (m = " << m << ") --> " << (Am * B).mod_xk(m) << std::endl;
-            return (Am * B).mod_xk(m);
-        */
     }
     inline static FPS inv(FPS &f, int m = deg() + 1) const { return f.inv(m); }
 
@@ -261,7 +258,6 @@ public:
     }
     inline static std::pair<FPS, FPS> div(FPS &f, const FPS &Q) const { return f.div(Q); }
 
-    /// @brief component-wise multiplication with v^k
     /// @return FPS A copy of the FPS with the x value scaled by v
     FPS scale_x(const R &v) const {
         R c = 1;
@@ -275,7 +271,7 @@ public:
 
 
 
-    // Computes the derivative
+    /// @return The derivative of the FPS
     FPS deriv(int k = 1) const {
         if(deg() + 1 < k) return FPS(R(0));
         std::vector<R> res(deg() - k +  1, R(0));
@@ -284,7 +280,7 @@ public:
                 res[i - 1] = this->at(i) * R(i);
         } else {
             for(int i = k; i <= deg(); i++)
-                res[i - k] = this->at(i) * internal::fact<R>(i) / internal::fact<R>(i - k);
+                res[i - k] = this->at(i) * internal::fact<R>(i) * internal::inv_fact<R>(i - k);
         }
         return FPS(res);
     }
@@ -304,27 +300,44 @@ public:
 
     /// @return The (natural) logarithm of the FPS (mod x^m)
     FPS log(int m) const { return (FPS(*this).deriv().mod_xk(m) * FPS(*this).inv(m)).mod_xk(m);  }
-
     inline static FPS log(FPS &f, int m) const { return f.log(m); }
 
     FPS exp(int m) const {
         assert(get(0) == 0);
         FPS Q(1), P(*this);
-        P.coef(0) += 1;
+        P[0] += 1;
         for(int i = 1; i < m; i *= 2) { // at the end of each step: F = e^P (mod x^{2^{i+1}})
             // Q = (Q * (P - Q.log(2*i))).mod_xk(2*i);
             Q = (Q * (P - Q.mod_xk(2*i))).mod_xk(2*i);
         }
         return Q.mod_xk(m);
     }
-
     inline static FPS exp(FPS &f, int m) const { return f.exp(m); }
 
-    FPS sqrt(int k = 2) const {
+    // FPS sqrt(int k = 2) const {
 
+    // }
+    // inline static FPS sqrt(FPS &f, int m) const { return f.sqrt(m); }
+
+    /// @return The k-th power of the FPS
+    FPS pow(int k, int m = -1) const {
+        if(m == -1) m = deg() * k;
+        if(is_zero()) {
+            assert(k > 0);
+            return (k == 0 ? FPS(1) : FPS(0));
+        }
+
+        if(k < 0)
+            return pow(-k, m).inv();
+
+        int ord = this->ord();
+        R a = this->at(ord);
+        FPS T(this->begin() + ord, this->end());
+        T /= a; // P(x) = ax^ord T(x); T(0) = 1
+        
+        // P(x)^k = a^k x^{k*ord} T(x)^k = a^k x^{k*ord} exp[klnT(x)]
+        return (T.log(m) * k).exp(m).shift(k * ord) * zeno::pow(a, k);
     }
-
-    inline static FPS sqrt(FPS &f, int m) const { return f.sqrt(m); }
 
     /// @brief Evaluate the FPS at point x0
     /// @return The value of the FPS at point x0 
@@ -336,11 +349,10 @@ public:
         return y;
     }
 
-
     /// @brief Builds the FPS evaluation tree.
     /// @return The FPS P(x) = (x - x_L) (x - x_{L+1}) ... (x - x_R)
     static FPS<R> build_poly_tree(std::vector<FPS<R>> &tree, 
-        int v, typename std::vector<R>::iterator l, typename std::vector<R>::iterator r) {
+        int v, std::vector<R>::iterator l, std::vector<R>::iterator r) {
             if(r - l == 1) {
                 return tree[v] = FPS({-*l, 1});
             } else {
@@ -350,8 +362,8 @@ public:
             }
         }
 
-    std::vector<R> eval(std::vector<FPS<R>> &tree, 
-        int v, typename std::vector<R>::iterator l, typename std::vector<R>::iterator r) {
+    std::vector<R> _eval(std::vector<FPS<R>> &tree, 
+        int v, std::vector<R>::iterator l, std::vector<R>::iterator r) {
             if(r - l == 1) {
                 return {eval(*l)};
             } else {
@@ -370,7 +382,7 @@ public:
         if(is_zero()) return std::vector<R>(n, R(0));
         std::vector<FPS<R>> tree(4*n);
         build_poly_tree(tree, 1, begin(x), end(x));
-        return eval(tree, 1, begin(x), end(x));
+        return _eval(tree, 1, begin(x), end(x));
     }
 
 
@@ -396,17 +408,31 @@ public:
         return _interpolate_tree(tree, 1, begin(u), end(u));
     }
 
+    /// @return The FPS P(x) = Prod_{i=0}^n f_i(x)
+    static FPS<R> eval_product(std::vector<R> &f) {
+        std::deque<FPS<R>> q;
+        for(auto &e: x) q.emplace_back(FPS(e));
+        for(int i = 0; i < x.size() - 1; i++) {
+            FPS<R> A = q.front();
+            q.pop_front();
+            FPS<R> B = q.front();
+            q.pop_front();
+            q.emplace_back(A * B);
+        }
+        return q.front();
+    }
+
 
     /// @return The Borel transformation of the FPS (a_k x^k -> a_k / k! x^k)
     FPS<R> borel() const {
         FPS<R> ret = FPS(*this);
         for(int k = 0; k <= deg(); k++)
-            ret[k] /= internal::fact(k);
+            ret[k] *= internal::inv_fact(k);
         return ret;
     }
 
     /// @return The inverse Borel (Laplace) transformation of the FPS (a_k x^k -> k!a_k x^k)
-    FPS<R> invborel() const {
+    FPS<R> inv_borel() const {
         FPS<R> ret = FPS(*this);
         for(int k = 0; k <= deg(); k++)
             ret[k] *= internal::fact(k);
@@ -438,6 +464,25 @@ public:
         V = (D - A*U) / B;
     }
 
+
+    /// @return P(x + c) where P is this FPS.
+    static FPS taylor_shift(R c) const {
+        size_t n = this->deg();
+        FPS a, b; a.resize(n), b.resize(n);
+        R cc = c;
+        for(int i = 0; i < n; i++) a[i] = internal::fact(i) * this->at(i);
+        for(int i = 0; i < n; i++) b[i] = cc * internal::inv_fact(i), cc *= c;
+        return (a * b).borel();
+    }
+
+    static FPS hadamard_product(FPS const &f) {
+        FPS ret({});
+        for(int i = 0; i < this->size() && i < f.size(); i++)
+            ret.push_back(this->at(i) * f[i]);
+        ret.normalize();
+        return ret;
+    }
+
 };
 
 template<class R>
@@ -447,7 +492,7 @@ template<class R>
 using Poly = FormalPowerSeries<R>;
 
 template<class R>
-FormalPowerSeries<R> operator*(const R &lhs, const FormalPowerSeries<R> &rhs) {
+FormalPowerSeries<R>  operator*(const R &lhs, const FormalPowerSeries<R> &rhs) {
     return FPS<R>(rhs) *= lhs;
 }
 

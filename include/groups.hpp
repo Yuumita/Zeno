@@ -10,7 +10,7 @@
 namespace zeno 
 {
 
-template<class G = modint998244353, class Z = int64_t>
+template<class G, class Z = int64_t>
 Z get_order(G g) {
     Z h = g.cardinality();
     std::vector<Z> p, v; 
@@ -47,14 +47,6 @@ Z primitive_root(Z p) {
 
     return 0;
 }
-
-// Given an odd prime, return x such that x^2 = a (mod p)
-template<class Zp = modint998244353, class Z = int64_t>
-Zp sqrt(Z _a) {
-    Zp a = Zp(_a); 
-    // TODO: finish
-}
-
 
 }; // namespace zeno
 

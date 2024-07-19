@@ -1,15 +1,3 @@
-
-/**
- * @file internal_fft.hpp
- * @author Yuumita
- * @brief (internal) Fast Fourier Tranformation Interface
- * @version 0.1
- * @date 2023-03-15
- * 
- * @copyright Copyright (c) 2023
- * 
- */
-
  #ifndef INTERNAL_ZENO_FFT_HPP
  #define INTERNAL_ZENO_FFT_HPP
 

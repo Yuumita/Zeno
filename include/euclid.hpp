@@ -52,64 +52,97 @@ Z binary_gcd(Z a, Z b) { /* fast implementation of Euclid's algorithm */
 
 template<typename Z = int64_t>
 Z _gcd(Z a, Z b) { /* Euclid's algorithm */
-static_cast(std::is_integral_v<Z>, "Template parameter Z should be integral for binary_gcd");
+    static_assert(std::is_integral_v<Z>, "Template parameter Z should be integral for binary_gcd");
     return binary_gcd(a, b);
 }
 
 // Extended Euclid's algorithm, returns gcd(a, b) and sets x, y to those s.t. ax + by = gcd(a, b)
-template<typename Z = int64_t>
+template <typename Z = int64_t>
 Z extended_gcd(Z a, Z b, Z &x, Z &y) {
     if (b == 0) {
         x = 1, y = 0;
         return a;
     }
     Z x1, y1;
-    Z d = extended_gcd(b, a % b, x1, y1);
+    Z g = extended_gcd(b, a % b, x1, y1);
     x = y1;
     y = x1 - y1 * (a / b);
-    return d;
+    return g;
 }
 
 // fast implementation of extended_gcd
+//template<typename Z = int64_t>
+//Z extended_binary_gcd(Z a, Z b, Z &x, Z &y) {
+//    // TODO: complete
+//}
+
+
+/// @brief Safely (i.e. in a way that avoid overflows) compute (a * b) mod n
 template<typename Z = int64_t>
-Z extended_binary_gcd(Z a, Z b, Z &x, Z &y) {
-    Z y1, y3, t1, t3;
-    bool f2 = false;
-    if(a < b) { 
-        std::swap(a, b);
-        std::swap(x, y);
-    }
-    if(b == 0) {
-        x = 1, y = 0;
-        return a;
-    }
-    Z q = a / b, r = a % b;
-    a = b;
-    b = r;
-    if(b == 0) {
-        x = 1, y = 0;
-        return a;
+Z safe_mul_mod(Z a, Z b, Z n) {
+    bool sign = true;
+    for(Z &x: [a, b]) {
+        if(x < 0) {
+            x = -x;
+            sign = !sign;
+        }
     }
 
-    Z k = 0;
-    while((a & 1) && (b & 1))
-        k += 1, a >>= 1, b >>= 1;
-    
-    if(~b & 1) {
-        std::swap(a, b);
-        std::swap(x, y);
+    a %= n, b %= n;
+    Z ret = 0;
+    while(b > 0) {
+        if(b % 2) {
+            ret = (ret + a) % n;
+        }
+        a = (a + a) % n, b /= 2;
     }
 
-    Z d = a;
-    x = 1, y1 = y3 = b;
+    return (sign ? ret : (-ret) % n);
+}
 
-    if(a & 1) 
-        t1 = 0, t3 = -b;
-    else {
-
+/// @brief Compute a solution to the diophantine equation ax + by = c. 
+/// @return true iff ax + by = c has at least one solution.
+template<typename Z = int64_t>
+bool solve_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
+    if (a == 0 && b == 0) {
+        if (c == 0) {
+            x = y = g = 0;
+            return true;
+        }
+        return false;
     }
-    
-    // TODO: complete
+
+    if (a == 0) {
+        if (c % b == 0) {
+            x = 0;
+            y = c / b;
+            g = (b < 0 ? -b : b);
+            return true;
+        }
+        return false;
+    }
+
+    if (b == 0) {
+        if (c % a == 0) {
+            x = c / a;
+            y = 0;
+            g = (a < 0 ? -a : a);
+            return true;
+        }
+        return false;
+    }
+
+    g = extended_gcd(a, b, x, y);
+    if (c % g != 0)
+        return false;
+    Z dx = c / a;
+    c -= dx * a;
+    T dy = c / b;
+    c -= dy * b;
+    x = dx + safe_mul_mod(x, c / g, b);
+    y = dy + safe_mul_mod(y, c / g, a);
+    g = (g < 0 ? -g: g);
+    return true;
 }
 
 

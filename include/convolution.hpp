@@ -1,14 +1,3 @@
-/**
- * @file fft.hpp
- * @author Yuumita
- * @brief Fast Fourier Tranformation Interface
- * @version 0.1
- * @date 2023-03-15
- * 
- * @copyright Copyright (c) 2023
- * 
- */
-
 #ifndef ZENO_FFT_HPP
 #define ZENO_FFT_HPP
 
@@ -123,13 +112,13 @@ namespace fft {
 
         if(inverse) {
             for(F &e: a)
-                e /= M(n);
+                e /= F(n);
         }
 
     }
 
     template<typename F>
-    void inv_fft(std::vector<F> &a, std::vector<F> &root, std::vector<F> &iroot) { 
+    inline void inv_fft(std::vector<F> &a, std::vector<F> &root, std::vector<F> &iroot) { 
         fft(a, true); 
     }
 
@@ -158,8 +147,8 @@ namespace fft {
         }
 
 
-        fft(Az);
-        fft(Bz);
+        fft_complex(Az);
+        fft_complex(Bz);
 
         // P1(x) = A1(x) * Bz(x), P2(x) = A2(x) * Bz(x)
         std::vector<complex<ftype>> P1(N), P2(N);
@@ -173,8 +162,8 @@ namespace fft {
             P2[i] = (Az[i] - Az[j].conj()) * complex<ftype>(0, -0.5) * Bz[i];
         }
 
-        fft(P1, true); 
-        fft(P2, true);
+        inv_fft_complex(P1); 
+        inv_fft_complex(P2);
 
         std::vector<T> ans(N);
         for(int i = 0; i < N; i++) {
@@ -226,7 +215,7 @@ template <typename T>
     std::vector<T> ret(n + m - 1);
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < m; ++j) 
-            ret[i + j] += a[i] * b[j];
+            ret[i + j] += static_cast<T>(a[i]) * static_cast<T>(b[j]);
     return ret;
 }
 
