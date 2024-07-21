@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <cstdint>
+#include <bitset>
 
 namespace zeno {
 
@@ -12,9 +13,9 @@ template<size_t d>
 class GF2Vector {
     static_assert(d > 0, "Template parameter d shoud be positive.");
 private:
-    const int logB = 32;
-    const int len  = (d + logB - 1) / logB;
-    std::vector<uint32_t> data;
+    // const int logB = 32;
+    // const int len  = (d + logB - 1) / logB;
+    std::bitset<d> data;
 public:
 
 
@@ -29,27 +30,23 @@ public:
     }
 
     GF2Vector& operator^=(const GF2Vector &rhs) {
-        for(int i = 0; i < len; i++)
-            this->data[i] ^= rhs->data[i];
+        this->data ^= rhs->data;
         return *this;
     }
 
     GF2Vector& operator+=(const GF2Vector &rhs) {
-        for(int i = 0; i < len; i++)
-            this->data[i] ^= rhs->data[i];
+        this->data ^= rhs->data;
         return *this;
     }
 
     GF2Vector& operator-=(const GF2Vector &rhs) {
-        for(int i = 0; i < len; i++)
-            this->data[i] ^= rhs->data[i];
+        this->data ^= rhs->data;
         return *this;
     }
 
     /// @brief Hadamard product.
     GF2Vector& operator*=(const GF2Vector &rhs) {
-        for(int i = 0; i < len; i++)
-            this->data[i] = this->data[i] & rhs->data[i];
+        this->data = this->data & rhs->data;
         return *this;
     }
 
@@ -61,12 +58,9 @@ public:
     GF2Vector operator-(const GF2Vector &rhs) const { return GF2Vector(*this) -= rhs; }
     GF2Vector operator*(const GF2Vector &rhs) const { return GF2Vector(*this) *= rhs; }
 
-    bool& operator[](size_t i) {
-        size_t j = i / logB;
-        i %= logB;
-        return (data[j] >> i & 1);
+    std::bitset::reference& operator[](size_t i) {
+        return data[i];
     }
-
 
 
     /// @brief Returns a set of GF2 vectors B of minimum cardinality such that span(B) = span(v).
@@ -100,6 +94,18 @@ public:
                 return false;
         }
         return true;
+    }
+
+
+ 
+    /// @return A basis for the nullspace, ker(A), of A.
+    static std::vector<GF2Vector> get_nullspace(std::vector<GF2Vector> const &A) {
+        std::vector<GF2Vector> I(d);
+        for(size_t i = 0; i < d; i++)
+            I[i][i] = 1;
+        for(int i = 0; i < A.size(); i++) {
+            /// TODO ...
+        }
     }
 
 };

@@ -102,6 +102,13 @@ public:
         return LT().coef();
     }
 
+    int deg() {
+        int ret = -1;
+        for(Mononomial &m: terms)
+            ret = std::max(ret, m.deg());
+        return ret;
+    }
+
     SMPoly& operator+=(const SMPoly &rhs) {
         this->terms.insert(this->terms->end(), rhs->terms.begin(), rhs->terms.end());
         normalize();
