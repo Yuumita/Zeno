@@ -7,6 +7,7 @@
 
 namespace zeno {
 
+/// @brief Implementation of the vector space GF(2)^d
 template<size_t d>
 class GF2Vector {
     static_assert(d > 0, "Template parameter d shoud be positive.");
@@ -87,7 +88,7 @@ public:
 
 
     /// @return true iff v belongs in span(U)
-    static bool in_span(std::vector<GF2Vector> U, GF2Vector v) {
+    static bool in_span(std::vector<GF2Vector> const &U, GF2Vector v) {
         std::vector<GF2Vector> B = get_basis(U); 
         for(size_t j = 0; j < d; j++) {
             if(v[j] == 0) continue;
