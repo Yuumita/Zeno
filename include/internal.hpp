@@ -35,14 +35,14 @@ template<typename Z = int64_t>
 Z binom(int n, int m) {
     if(n < 0 || m < 0 || n - m < 0) return Z(0);
     if(std::is_integral_v<Z>) {
-        static std::vector<std::vector<Z>> _binom(std::vector({}));
+        static std::vector<std::vector<Z>> _binom(std::vector<Z>({}));
         while(_binom.size() <= n)
             _binom.push_back({});
         while(_binom[n].size() <= m)
             _binom[n].push_back(-1);
         if(_binom[n][m] == -1)
-            return binom[n][m] = binom(n, m-1) + binom(n-1, m-1);
-        return binom[n][m];
+            return _binom[n][m] = binom(n, m-1) + binom(n-1, m-1);
+        return _binom[n][m];
     }
     return fact(n) * inv_fact(m) * inv_fact(n - m);
 }

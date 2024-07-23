@@ -20,12 +20,10 @@ public:
 
 
     GF2Vector() {
-        data.assign(len, 0);
     }
 
     template <typename T>
     GF2Vector(std::vector<T> const &vec) {
-        data.assign(len, 0);
         /// TODO: ...
     }
 
@@ -67,7 +65,7 @@ public:
     ///        For other algorithms in GF2Vector to work, B should be such that if the first 1 in
     ///        B[i] is in the j-th column then all the vectors B[i+1...] have 0s in columns [0, j].
     static std::vector<GF2Vector> get_basis(std::vector<GF2Vector> V) {
-        /// TODO: implement it with const in V
+        /// TODO: implement it with const in V ???
         std::vector<GF2Vector> B;
         for(size_t j = 0; j < d; j++) {
             if(V[j][j] == 0) continue;
@@ -97,15 +95,34 @@ public:
     }
 
 
- 
     /// @return A basis for the nullspace, ker(A), of A.
     static std::vector<GF2Vector> get_nullspace(std::vector<GF2Vector> const &A) {
-        std::vector<GF2Vector> I(d);
-        for(size_t i = 0; i < d; i++)
-            I[i][i] = 1;
+        std::vector<GF2Vector> B;
         for(int i = 0; i < A.size(); i++) {
-            /// TODO ...
+            if(A[i].any())
+                B.push_back(A[i]);
         }
+
+        std::vector<bool> F(d, true);
+        std::vector<int>  p(d, 0);
+
+        for(int i = 0; i < B.size(); i++) {
+            for(int j = 0; j < d; j++) if(B[i][j]) {
+                F[j] = false, p[i] = j;
+            }
+        }
+
+        std::vector<GF2Vector> ret;
+        for(int f = 0; f < d; f++) if(F[f]) {
+            GF2Vector n;
+            n[f] = 1;
+            for(int i = 0; i < B.size(); i++) {
+                n[p[i]] = A[i][f];
+            }
+            ret.push_back(n);
+        }
+
+        return ret;
     }
 
 };

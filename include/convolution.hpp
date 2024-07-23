@@ -223,8 +223,8 @@ template <typename T>
 std::vector<T> convolution(std::vector<T> const &a, std::vector<T> const &b) {
     if (std::min(a.size(), b.size()) <= fft::magic_number) 
         return convolution_naive(a, b);
-    if(zeno::is_modular_v<T>) {
-        return fft::convolution_ntt(a, b);
+    if constexpr (zeno::is_modular_v<T>) {
+        return fft::convolution_ntt<T>(a, b);
     } 
     /* 
     else if(std::is_integral_v<T>) {

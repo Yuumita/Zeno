@@ -81,7 +81,7 @@ Z extended_gcd(Z a, Z b, Z &x, Z &y) {
 template<typename Z = int64_t>
 Z safe_mul_mod(Z a, Z b, Z n) {
     bool sign = true;
-    for(Z &x: [a, b]) {
+    for(Z &x: {a, b}) {
         if(x < 0) {
             x = -x;
             sign = !sign;
@@ -137,7 +137,7 @@ bool solve_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
         return false;
     Z dx = c / a;
     c -= dx * a;
-    T dy = c / b;
+    Z dy = c / b;
     c -= dy * b;
     x = dx + safe_mul_mod(x, c / g, b);
     y = dy + safe_mul_mod(y, c / g, a);

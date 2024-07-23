@@ -21,10 +21,12 @@ namespace fft
     
 
 
-template <class M, typename Z = int64_t>
+/// @brief The NTT class.
+/// @tparam M Modular ring class.
+/// @tparam Z Integer ring holding numbers at least as large as the cardinality of M.
+template <class M, typename Z = int64_t, std::enable_if_t<zeno::is_modular_v<M>>* = nullptr>
 class NumberTheoreticTransform {
     using NTT = NumberTheoreticTransform;
-    static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
 
     int ordlog; // log(p-1), needed for finding the biggest k such that there is a (2^k)-th unity root
     Z p;        // odd prime p = c2^k + 1
@@ -77,22 +79,23 @@ public:
 
 
     template <typename U = M>
-    static std::enable_if_t<!std::is_same<U, dynamic_modular<Z>>::value, const NTT&> get_info(Z m = 0) {
+    static const NTT& get_info(Z m = 0) {
+    // static std::enable_if_t<!std::is_same<U, static_modular<>::value, const NTT&> get_info(Z m = 0) {
         static NTT info(M::mod()); 
         return info;
     }
 
-    template <typename U = M>
-    static std::enable_if_t<std::is_same<U, dynamic_modular<Z>>::value, NTT&> get_info(Z m) {
-        static std::unordered_map<Z, NTT> instances;
-        auto it = instances.find(m);
-        if (it != instances.end()) {
-            return it->second;
-        } else {
-            NTT info(m);
-            return instances[m] = info;
-        }
-    }
+    // template <typename U = M>
+    // static std::enable_if_t<std::is_same<U, dynamic_modular<Z>>::value, NTT&> get_info(Z m) {
+    //     static std::unordered_map<Z, NTT> instances;
+    //     auto it = instances.find(m);
+    //     if (it != instances.end()) {
+    //         return it->second;
+    //     } else {
+    //         NTT info(m);
+    //         return instances[m] = info;
+    //     }
+    // }
 
     const std::vector<M> &roots()  const { return w; }
     const std::vector<M> &iroots() const { return iw; }
@@ -120,7 +123,7 @@ public:
 
         for (size_t l = 1; l <= s; l++) {
             size_t len = size_t(1) << l;
-            M wlen = inverse ? iroot[l] : root[l];
+            M wlen = inverse ? iw[l] : w[l];
             for (size_t i = 0; i < n; i += len) {
                 M w(1);
                 for(size_t j = 0; j < len / 2; j++) {
@@ -138,16 +141,15 @@ public:
                 e /= M(n);
         }
     }
-    inline void inv_transform(std::vector<M> &a, std::vector<M> const &root, std::vector<M> const &iroot) {
+    inline void inv_transform(std::vector<M> &a) {
         static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
         transform(a, true);
     }
 };
 
 
-template <class M>
+template <class M, std::enable_if_t<zeno::is_modular_v<M>>* = nullptr>
 std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b, M p = M(0)) {
-    static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
 
     if(a.empty() || b.empty()) return {};
 
@@ -165,7 +167,7 @@ std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b,
     ntt.transform(fb);
     for(int i = 0; i < N; i++) 
         fa[i] *= fb[i];
-    ntt.inv_transform(fa, true);
+    ntt.inv_transform(fa);
 
     fa.resize(n + m - 1);
     return fa;
