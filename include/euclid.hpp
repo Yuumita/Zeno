@@ -1,5 +1,4 @@
-#ifndef ZENO_EUCLID_HPP
-#define ZENO_EUCLID_HPP
+#pragma once
 
 #include <vector>
 #include <cstdint>
@@ -165,6 +164,3 @@ Z inductive_chinese_remainder_theorem(std::vector<Z> const &m, std::vector<Z> co
 }
 
 } // namespace zeno
-
-
-#endif /* ZENO_EUCLID_HPP */

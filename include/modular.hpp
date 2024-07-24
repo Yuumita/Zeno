@@ -1,5 +1,4 @@
-#ifndef ZENO_MODULAR_HPP
-#define ZENO_MODULAR_HPP
+#pragma once
 
 #include "primality.hpp"
 #include <cassert>
@@ -103,14 +102,11 @@ public:
         while (n > 0) {
             if (n & 1) ret *= mul;
             mul *= mul, n >>= 1;
-            assert(mul != modular(0));
-            assert(ret != modular(0));
         }
         return ret;
     }
 
     modular inv() const {
-        assert(v != 0);
         // Fermat's Little Theorem
         if(is_prime)
             return pow(umod() - 2);
@@ -280,6 +276,3 @@ using modint998244353 = modint<998244353>;
 // using dmint64 = dynamic_modular<int64_t>;
 
 }; // namespace zeno
-
-
-#endif /* ZENO_MODULAR_HPP */

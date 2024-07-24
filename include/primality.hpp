@@ -1,5 +1,4 @@
-#ifndef ZENO_PRIMALITY_HPP
-#define ZENO_PRIMALITY_HPP
+#pragma once
 
 #include <vector>
 #include <cstdint>
@@ -218,5 +217,3 @@ template <int64_t n> constexpr bool is_prime_constexpr = _is_prime_constexpr(n);
 
 
 }; // namespace zeno
-
-#endif /* ZENO_PRIMALITY_HPP */

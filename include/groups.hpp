@@ -1,10 +1,8 @@
-#ifndef ZENO_CYCLIC_GROUPS_HPP
-#define ZENO_CYCLIC_GROUPS_HPP
+#pragma once
 
 #include "modular.hpp"
 #include "primality.hpp"
 #include "internal.hpp"
-#include "misc.hpp"
 #include <vector>
 
 namespace zeno 
@@ -49,5 +47,3 @@ Z primitive_root(Z p) {
 }
 
 }; // namespace zeno
-
-#endif /* ZENO_CYCLIC_GROUPS_HPP */

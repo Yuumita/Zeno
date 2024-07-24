@@ -1,10 +1,10 @@
-#ifndef ZENO_BIGINT_HPP
-#define ZENO_BIGINT_HPP
+#pragma once
 
 #include <vector>
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
+#include <iostream>
 #include <string>
 
 namespace zeno {
@@ -35,7 +35,7 @@ public:
         static_assert(std::is_integral_v<Z>, "Template parameter Z is not integral.");
         if (std::is_signed_v<Z>)
             if (x < Z(0)) neg = true, x = -x;
-        while (x > Z(0))  dat.push_back(x % B), x /= B;
+        while (x > Z(0))  digits.push_back(x % B), x /= B;
     }
 
     template<typename Iterator>
@@ -70,40 +70,60 @@ public:
         MultiPrecisionInteger(s.begin(), s.end());
     }
 
-    MPI& operator+=(const MPI& x) { 
 
+    friend MPI operator+(const MPI& lhs, const MPI& rhs) {
+        if (lhs.neg == rhs.neg) 
+            return MPI(lhs.neg, _add(lhs.digits, rhs.digits));
+        std::vector<int> c;
+        bool nneg;
+        if (_cmp(lhs.digits, rhs.digits) < 0) { // |l| <= |r|
+            c = _sub(rhs.digits, lhs.digits);
+            nneg = MPI::is_zero(c) ? false : rhs.neg;
+        } else {
+            c = _sub(lhs.digits, rhs.digits);
+            nneg = MPI::is_zero(c) ? false : lhs.neg;
+        }
+        return MPI(nneg, std::move(c));
     }
 
-    MPI& operator-=(const MPI& rhs) { 
+    friend MPI operator-(const MPI& lhs, const MPI& rhs) { return lhs + (-rhs); }
 
+    friend MPI operator*(const MPI& lhs, const MPI& rhs) {
+        std::vector<int> c = _mul(lhs.digits, rhs.digits);
+        bool nneg = MPI::is_zero(c) ? false : (lhs.neg ^ rhs.neg);
+        return MPI(nneg, std::move(c));
     }
 
-    MPI& operator*=(const MPI& rhs) { 
-
+    friend std::pair<MPI, MPI> divmod(const MPI& lhs, const MPI& rhs) {
+        auto dm = _divmod_newton(lhs.digits, rhs.digits);
+        bool dn = _is_zero(dm.first) ? false : lhs.neg != rhs.neg;
+        bool mn = _is_zero(dm.second) ? false : lhs.neg;
+        return {MPI(dn, std::move(dm.first)), MPI(mn, std::move(dm.second))};
     }
 
-    MPI& operator/=(const MPI& rhs) { 
-
+    friend MPI operator/(const MPI& lhs, const MPI& rhs) {
+        return divmod(lhs, rhs).first;
     }
 
-    MPI& operator%=(const MPI& rhs) { 
-
+    friend MPI operator%(const MPI& lhs, const MPI& rhs) {
+        return divmod(lhs, rhs).second;
     }
 
+    MPI& operator+=(const MPI& rhs) { return (*this) = (*this) + rhs; }
+    MPI& operator-=(const MPI& rhs) { return (*this) = (*this) - rhs; }
+    MPI& operator*=(const MPI& rhs) { return (*this) = (*this) * rhs; }
+    MPI& operator/=(const MPI& rhs) { return (*this) = (*this) / rhs; }
+    MPI& operator%=(const MPI& rhs) { return (*this) = (*this) % rhs; }
 
 
-    MPI& operator++() { 
-
-    }
+    MPI& operator++() { return (*this) = (*this) + MPI(1); }
     MPI operator++(int) { MPI ret(*this); operator++(); return ret; }
 
-    MPI& operator--() { 
-
-    }
+    MPI& operator--() { return (*this) = (*this) - MPI(1); }
     MPI operator--(int) { MPI ret(*this); operator--(); return ret; }
 
     MPI operator+() const { return MPI(*this); }
-    MPI operator-() const { return MPI(!neg, digits); }
+    MPI operator-() const { return MPI((digits.empty() ? false: !neg), digits); }
 
     // TODO: check for equivalences between representations
     friend bool operator==(const MPI &A, const MPI &B) { 
@@ -135,11 +155,9 @@ private:
         while(!a.empty() && a.back() == 0) a.pop_back();
     }
 
+
     /// @return -1, 0, +1 if lhs is <, ==, > rhs respectively.
-    static int _cmp(const MPI &lhs, const MPI &rhs) {
-        if(lhs.neg != rhs.neg)
-            return (lhs.neg ? +1 : -1);
-        std::vector<int> const &l = lhs.digits, &r = rhs.digits;
+    static int _cmp(std::vector<int> const &l, std::vector<int> const &r) {
         if(l.size() != r.size()) 
             return (l.size() < r.size() ? -1: +1);
         for(int i = l.size() - 1; i >= 0; i--) 
@@ -147,8 +165,17 @@ private:
         return 0;
     }
 
+    /// @return -1, 0, +1 if lhs is <, ==, > rhs respectively.
+    static int _cmp(const MPI &lhs, const MPI &rhs) {
+        if(lhs.neg != rhs.neg)
+            return (lhs.neg ? +1 : -1);
+        const std::vector<int> &l = lhs.digits, &r = rhs.digits;
+        return _cmp(l, r);
+    }
+
+
     /// @brief Add the unsigned MPI vectors (a + b) and store the result to a
-    static void _add(std::vector<int> &a, std::vector<int> const &b) {
+    static void _add_op(std::vector<int> &a, std::vector<int> const &b) {
         int carry = 0;
         for(int i = 0; i < a.size() || i < b.size() || carry; i++) {
             if(i == a.size()) a.push_back(0);
@@ -158,9 +185,15 @@ private:
         }
     }
 
+    static std::vector<int> _add(std::vector<int> const &a, std::vector<int> const &b) {
+        std::vector<int> ret = a;
+        _add_op(ret, b);
+        return ret;
+    }
+
     /// @brief Subtract the two unsigned MPI vectors (a - b) and store the result to a
     /// @pre a >= b
-    static void _sub(std::vector<int> &a, std::vector<int> const &b) {
+    static void _sub_op(std::vector<int> &a, std::vector<int> const &b) {
         int carry = 0;
         for(int i = 0; i < b.size() || carry; i++) {
             a[i] -= carry + (i < b.size() ? b[i] : 0);
@@ -169,17 +202,139 @@ private:
         }
         _shrink(a);
     }
-    
-    
-    static const int magic_number = 60;
 
+    static std::vector<int> _sub(std::vector<int> const &a, std::vector<int> const &b) {
+        std::vector<int> ret = a;
+        _sub_op(ret, b);
+        return ret;
+    }
+
+    static const int magic_number = 60;
+    static const long long BB = (long long)(B) * B;
+
+
+    /// @return The multiplication, a * b, result of the (unsigned) MPIs a, b.
+    static std::vector<int> _mul(std::vector<int> const &a, std::vector<int> const &b) {
+        if(a.empty() || b.empty()) return {};
+        if(a.size() <= magic_number || b.size() <= magic_number) { // naive convolution
+
+            std::vector<long long> c(a.size() + b.size());
+            for(int i = 0; i < a.size(); i++) {
+                for(int j = 0; j < b.size(); j++) {
+                    c[i + j] += (long long)(a[i]) * (long long)b[j]; 
+                    // a[i] * b[i] < 10^18 => c[i + j] < 10^18 + 10^
+                    if(c[i + j] >= BB) {
+                        c[i + j] -= BB;
+                        c[i + j + 1]  += (long long)(B);
+                    }
+                }
+            }
+            std::vector<int> ret(c.size() + 3);
+            long long carry = 0;
+            int i;
+            for(i = 0; i < c.size(); i++) {
+                carry += c[i];
+                ret[i] = carry % B;
+                carry /= B;
+            }
+            while(carry) {
+                ret[i++] = carry % B;
+                carry /= B;
+            }
+            _shrink(ret);
+            return ret;
+        } 
+
+        // ntt convolution 
+        /// TODO: check sizes for overflows
+        std::vector<__int128_t> c = BigNTT::multiply_int128(a, b);
+        std::vector<int> ret(c.size() + 3);
+        __int128_t carry = 0;
+        int i;
+        for(i = 0; i < c.size(); i++) {
+            ret.push_back(carry % B);
+            carry /= B;
+        }
+        while(carry) {
+            ret[i++] = carry % B;
+            carry /= B;
+        }
+        _shrink(ret);
+        return ret;
+    }
+    
+    
     /// @brief Multiply the unsigned MPI vector a with b and store the result to a
     /// @pre b < B
-    static void _mul(std::vector<int> &a, std::vector<int> const &b) {
-        // Ideally a >= b
-        if(a.size() <= magic_number && b.size() <= magic_number) {
+    static void _mul_op(std::vector<int> &a, std::vector<int> const &b) {
+        a = _mul(a, b);
+    }
 
+    static std::pair<std::vector<int>, std::vector<int>> _div(std::vector<int> const &a, int const &b) {
+        if(b == 0) {
+            std::cerr << "Division by zero" << std::endl;
+            exit(1);
         }
+        if(b == 1) return {a, {}};
+        std::vector<int> q(a.size()), r;
+        long long carry = 0;
+        for(int i = a.size() - 1; i >= 0; --i) {
+            carry = carry * B + a[i];
+            q[i]  = (int)(carry / b);
+            carry %= b;
+        }
+        _shrink(q);
+        if(carry) r.push_back(carry);
+        return {q, r};
+    }
+
+    static std::pair<std::vector<int>, std::vector<int>> _div(std::vector<int> const &a, std::vector<int> const &b) {
+        if(MPI::is_zero(b)) {
+            std::cerr << "Division by zero" << std::endl;
+            exit(1);
+        }
+        if(b.size() == 1) return _div(a, b[0]);
+
+        if(_cmp(a, b) < 0) return {{}, a};
+
+    }
+
+    /// @ref https://en.wikipedia.org/wiki/Division_algorithm#Newton–Raphson_division
+    /// TODO: fused multiply-add
+
+public:
+
+    static MPI abs(MPI const &m) { return MPI(false, m.digits); }
+    bool is_zero() const { return digits.empty(); }
+    static bool is_zero(std::vector<int> const &a) { return a.empty(); }
+
+    static std::string to_string(int value, bool padding = false) {
+        std::string ret = std::to_string(value);
+        if(padding) {
+            std::string p;
+            for(int i = ret.size(); i < 9; i++) p.push_back('0');
+            return p + ret;
+        }
+        return ret;
+    }
+
+    std::string to_string() const {
+        if(is_zero()) return "0";
+        std::string ret;
+        if(neg) ret.push_back('-');
+        for(int i = digits.size() - 1; i >= 0; --i)
+            ret += MPI::to_string(digits[i], i != digits.size() - 1);
+        return ret;
+    }
+
+    friend std::istream& operator>>(std::istream& is, MPI &m) {
+        std::string s;
+        is >> s;
+        m = MPI(s);
+        return is;
+    }
+    friend std::ostream& operator<<(std::ostream& os, MPI const &m) {
+        return os << m.to_string();
     }
 };
 
@@ -188,4 +343,3 @@ using BigInt = MultiPrecisionInteger;
 using bigint = MultiPrecisionInteger;
     
 } // namespace zeno
-#endif /* ZENO_BIGINT_HPP */

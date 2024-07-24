@@ -1,5 +1,4 @@
-#ifndef ZENO_GF2_VEC_HPP
-#define ZENO_GF2_VEC_HPP
+#pragma once
 
 #include <vector>
 #include <iostream>
@@ -22,9 +21,8 @@ public:
     GF2Vector() {
     }
 
-    template <typename T>
-    GF2Vector(std::vector<T> const &vec) {
-        /// TODO: ...
+    GF2Vector(std::bitset<d> const &b) {
+        data = b;
     }
 
     GF2Vector& operator^=(const GF2Vector &rhs) {
@@ -130,6 +128,3 @@ public:
 
 
 } // namespace zeno
-
-
-#endif /* ZENO_GF2_VEC_HPP */

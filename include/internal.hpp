@@ -1,5 +1,4 @@
-#ifndef ZENO_INTERNAL_HPP
-#define ZENO_INTERNAL_HPP
+#pragma once
 
 #include <cstdint>
 
@@ -122,6 +121,3 @@ Z popcount(Z x) {
 }; // namespace internal
 
 }; // namespace zeno
-
-
-#endif /* ZENO_INTERNAL_HPP */

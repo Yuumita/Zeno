@@ -1,5 +1,4 @@
-#ifndef ZENO_NTT_HPP
-#define ZENO_NTT_HPP
+#pragma once
 
 #include <vector>
 #include <cstdint>
@@ -59,8 +58,6 @@ class NumberTheoreticTransform {
                 assert(w[j].pow((1ll << i)) != 1);
             }
         }
-
-        std::cerr << p << ", " << g << ", " << c <<", " << ordlog << std::endl;
 
         assert(w[0] == M(1));
 
@@ -176,6 +173,3 @@ std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b,
 } // namespace fft
     
 } // namespace zeno
-
-
-#endif /* ZENO_NTT_HPP */

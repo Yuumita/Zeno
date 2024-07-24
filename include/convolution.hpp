@@ -1,5 +1,4 @@
-#ifndef ZENO_FFT_HPP
-#define ZENO_FFT_HPP
+#pragma once
 
 #include "internal.hpp"
 #include "internal_fft.hpp"
@@ -237,5 +236,3 @@ std::vector<T> convolution(std::vector<T> const &a, std::vector<T> const &b) {
 }
 
 } // namespace zeno
-
-#endif

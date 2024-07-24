@@ -1,9 +1,8 @@
-#ifndef ZENO_FPS_HPP
-#define ZENO_FPS_HPP
+#pragma once
 
 #include <vector>
 #include <iostream>
-#include <assert.h>
+#include <cassert>
 #include <algorithm> // std::min
 
 #include "convolution.hpp"
@@ -31,7 +30,8 @@ public:
     void resize(size_t n, R v = R(0)) { a.resize(n, v); }
     size_t size()           const { return a.size(); }
     R& at(size_t i)         { return a.at(i); }
-    R& operator[](size_t i) { return a[i]; }
+
+    R& operator[](size_t i)             { return a[i]; }
     const R& operator[](size_t i) const { return a[i]; }
 
     void push_back(R const &v) { a.push_back(v); }
@@ -91,7 +91,7 @@ public:
 
     /// @returns A copy of the coefficient of x^i
     R get(const int i) const {
-        return (0 <= i && i <= deg() ? a.at(i) : R(0));
+        return (0 <= i && i < a.size() ? a.at(i) : R(0));
     }
 
     /// @return A copy of the x^i coefficient
@@ -116,8 +116,8 @@ public:
 
     /// @brief Returns a copy of the leading coefficient
     R leadcoef() const {
-        if(this->empty()) return 0;
-        return this->back();
+        if(a.empty()) return 0;
+        return a.back();
     }
 
 
@@ -143,10 +143,9 @@ public:
 
     FPS& operator+=(const FPS &rhs) {
         int d = (this->deg() > rhs.deg() ? this->deg() : rhs.deg());
-        this->resize(d);
-        for(int i = 0; i < (int)rhs.size(); i++){
-            a.at(i) += rhs[i];
-        }
+        this->resize(d + 1);
+        for(int i = 0; i < rhs.size(); i++)
+            a[i] += rhs[i];
         this->normalize();
         return *this;
     }
@@ -154,9 +153,8 @@ public:
     FPS& operator-=(const FPS &rhs) {
         int d = (this->deg() > rhs.deg() ? this->deg() : rhs.deg());
         this->resize(d + 1);
-        for(int i = 0; i < (int)rhs.size(); i++){
-            a.at(i) -= rhs[i];
-        }
+        for(int i = 0; i < rhs.size(); i++)
+            a[i] -= rhs[i];
         this->normalize();
         return *this;
     }
@@ -167,7 +165,6 @@ public:
         return *this;
     }
 
-
     FPS& operator/=(const FPS &rhs) {
         return *this = div(rhs).first;
     }
@@ -175,7 +172,6 @@ public:
     FPS& operator%=(const FPS &rhs) {
         return *this = div(rhs).second;
     }
-
 
     FPS& operator+=(const R &rhs) {
         this->coef(0) += rhs;
@@ -207,7 +203,7 @@ public:
     // }
 
     FPS operator-() const {
-        FPS t = FPS(this->size());
+        FPS t = FPS(*this);
         for(auto &e: t) e = -e;
         return t;
     }
@@ -224,13 +220,13 @@ public:
     FPS operator/(const R &rhs) const { return FPS(*this) /= rhs; }
 
 
-    static bool _vec_weak_equals(std::vector<R> const &a, std::vector<R> const &b) {
-        size_t i = a.size() - 1, j = b.size() - 1;
-        while(i >= 0 && a[i] == R(0)) i--;
-        while(j >= 0 && b[j] == R(0)) j--;
+    static bool _vec_weak_equals(std::vector<R> const &A, std::vector<R> const &B) {
+        int i = A.size() - 1, j = B.size() - 1;
+        while(i >= 0 && A[i] == R(0)) i--;
+        while(j >= 0 && B[j] == R(0)) j--;
         if(i != j) return false;
         while(i >= 0)
-            if(a[i] != b[i]) return false;
+            if(A[i] != B[i]) return false;
             else i--;
         return true;
     }
@@ -248,15 +244,16 @@ public:
     // bool operator == (const FPS &rhs) const { normalize(); return *this == rhs; }
     // bool operator != (const FPS &rhs) const { normalize(); return *this != rhs; }
 
-    /// @return FPS A copy of this FPS mod x^k (getting the first k coefficients)
+    /// @return A copy of *this mod x^k (only the the first k coefficients)
     FPS mod_xk(size_t k) const {
         // std::vector<R> aa(a.begin(), a.begin() + std::min(k, a.size()));
-        std::vector<R> aa(a.begin(), a.begin() + k);
+        std::vector<R> aa;
+        for(size_t i = 0; i < k && i < a.size(); i++) aa.push_back(a[i]);
         return FPS(aa);
     }
     inline static FPS mod_xk(FPS &f, size_t k) { return f.mod_xk(k); }
 
-    /// @return FPS A copy of this FPS times x^k (coefficients shifted k steps to the right)
+    /// @return A copy of *this times x^k (coefficients shifted k steps to the right)
     FPS times_xk(int k) const {
         std::vector<R> coefs = *this;
         coefs.insert(coefs.begin(), k, R(0));
@@ -264,7 +261,7 @@ public:
     }
     inline static FPS times_xk(FPS &f, int k) { return f.times_xk(k); }
 
-    /// @return FPS A copy of this FPS with coefficients shifted k steps to the left
+    /// @return A copy of *this with coefficients shifted k steps to the left
     FPS floordiv_xk(int k) const {
         return FPS(std::vector<R>(this->begin() + k, this->end()));
     }
@@ -281,7 +278,7 @@ public:
     inline static FPS shift(FPS &f, int k) { return f.shift(k); }
 
 
-    /// @return FPS P(x^{1/2})
+    /// @return P(x^{1/2}) where P = *this.
     FPS sqrt_x() const {
         std::vector<R> ret(this->size(), R(0));
         for(int i = 0; i < this->size(); i++)
@@ -290,7 +287,7 @@ public:
     }
     inline static FPS sqrt_x(FPS &f) { return f.sqrt_x(); }
 
-    /// @return FPS P(x^2)
+    /// @return P(x^2) where P = *this.
     FPS sqr_x() const {
         std::vector<R> ret(2 * this->size(), R(0));
         for(int i = 0; i < this->size(); i++)
@@ -299,7 +296,7 @@ public:
     }
     inline static FPS sqr_x(FPS &f) { return f.sqr_x(); }
 
-    /// @return The multiplicative inverse of this FPS mod x^m
+    /// @return The multiplicative inverse of *this mod x^m.
     FPS inv(int m = -1) const {
         if(m == -1) m = deg() + 1;
         assert(get(0) != R(0));
@@ -311,7 +308,7 @@ public:
     }
     inline static FPS inv(FPS &f, int m = deg() + 1) { return f.inv(m); }
 
-    /// @return A copy of this FPS with coefficients reversed.
+    /// @return A copy of *this with the coefficients reversed.
     FPS reverse() const {
         return FPS(std::vector<R>(a.rbegin(), a.rend()));
     }
@@ -330,7 +327,7 @@ public:
     }
     inline static std::pair<FPS, FPS> div(FPS &f, const FPS &Q) { return f.div(Q); }
 
-    /// @return FPS A copy of the FPS with the x value scaled by v.
+    /// @return A copy of *this with the x value scaled by v [P(x) -> P(vx)].
     FPS scale_x(const R &v) const {
         R c = 1;
         FPS P(*this);
@@ -343,7 +340,7 @@ public:
 
 
 
-    /// @return The derivative of the FPS
+    /// @return The derivative of *this
     FPS deriv(int k = 1) const {
         if(deg() + 1 < k) return FPS(R(0));
         std::vector<R> res(deg() - k +  1, R(0));
@@ -360,7 +357,7 @@ public:
     inline static FPS deriv(FPS &f, int k = 1) { return f.deriv(k); }
 
 
-    /// @return The integral of the FPS (with constant 0)
+    /// @return The integral of *this (with constant 0)
     FPS integr() const {
         std::vector<R> res(deg() + 2);
         for(int i = 1; i <= deg() + 1; i++) {
@@ -370,21 +367,22 @@ public:
     }
     inline static FPS integr(FPS &f) { return f.integr(); }
 
-    /// @return The (natural) logarithm of the FPS (mod x^m)
+    /// @return log(*this) (natural logarithm).
     FPS log(int m = -1) const { 
         if(m == -1) m = deg() + 1;
-        return (FPS(*this).deriv().mod_xk(m) * FPS(*this).inv(m)).mod_xk(m);
+        FPS P(*this);
+        return (P.deriv().mod_xk(m) * P.inv(m)).mod_xk(m - 1).integr();
     }
     inline static FPS log(FPS &f, int m) { return f.log(m); }
 
+    /// @return exp(*this).
     FPS exp(int m = -1) const {
         if(m == -1) m = deg() + 1;
         assert(get(0) == 0);
         FPS Q(1), P(*this);
-        P[0] += 1;
+        P[0] = 1;
         for(int i = 1; i < m; i *= 2) { // at the end of each step: F = e^P (mod x^{2^{i+1}})
-            // Q = (Q * (P - Q.log(2*i))).mod_xk(2*i);
-            Q = (Q * (P - Q.mod_xk(2*i))).mod_xk(2*i);
+            Q = (Q * (P - Q.log(2*i))).mod_xk(2*i);
         }
         return Q.mod_xk(m);
     }
@@ -415,7 +413,6 @@ public:
         return (T.log(m) * k).exp(m).shift(k * ord) * internal::pow(a, k);
     }
 
-    /// @brief Evaluate the FPS at point x0
     /// @return The value of the FPS at point x0 
     R eval(R x0) const {
         R y(0);
@@ -426,7 +423,7 @@ public:
     }
 
     /// @brief Builds the FPS evaluation tree.
-    /// @return The FPS P(x) = (x - x_L) (x - x_{L+1}) ... (x - x_R)
+    /// @return The FPS P(x) = (x - x_l) (x - x_{l+1}) ... (x - x_{r-1}).
     static FPS build_poly_tree(std::vector<FPS> &tree, 
         int v, size_t l, size_t r, std::vector<R> const &x) {
             if(r - l == 1) {
@@ -451,8 +448,7 @@ public:
             }
         }
 
-    /// @brief Evaluate the FPS in points x0, x1, ..., x_{n-1}
-    /// @return The value of the FPS at points x0, x1, ..., x_{n-1}
+    /// @brief Evaluate the FPS in points x0, x1, ..., x_{n-1} in O(nlog^2 n).
     std::vector<R> eval(std::vector<R> const &x) {
         int n = x.size();
         if(is_zero()) return std::vector<R>(n, R(0));
@@ -462,26 +458,30 @@ public:
     }
 
 
-    static FPS _interpolate_tree(std::vector<FPS> &tree, 
+    static FPS _interpolate_tree(std::vector<FPS> &Atree,  std::vector<FPS> const &Ptree,
         int v, size_t l, size_t r, std::vector<R> const &x) {
             if(r - l == 1) {
-                return tree[v] = FPS(x[l]);
+                return Atree[v] = FPS(x[l]);
             } else {
                 auto m = l + (r - l) / 2;
-                FPS A = _interpolate_tree(tree, 2*v, l, m, x);
-                FPS B = _interpolate_tree(tree, 2*v+1, m, r, x);
-                return tree[v] = A * tree[2*v+1] + tree[2*v] * B;
+                FPS A = _interpolate_tree(Atree, Ptree, 2*v, l, m, x);
+                FPS B = _interpolate_tree(Atree, Ptree, 2*v+1, m, r, x);
+                return Atree[v] = A * Ptree[2*v+1] + Ptree[2*v] * B;
             }
     }
 
 
+    /// @brief Polynomial interpolation in O(nlog^2 n)
+    /// @pre x All x values should be unique.
+    /// @return An interpolated polynomial A(x) s.t. A(x[i]) = y[i] for i = 0, 1, ..., n-1.
     static FPS interpolate(std::vector<R> const &x, std::vector<R> const &y) {
         assert(x.size() == y.size());
-        std::vector<FPS> tree(4*x.size());
-        std::vector<R> u = FPS::build_poly_tree(tree, 1, 0, x.size(), x).deriv().eval(x);
+        std::vector<FPS> Ptree(4*x.size()), Atree(4*x.size()); 
+        // P(x) = (x - x_0) ... (x - x_{n-1}) and A(x) is the interpolation polynomial
+        std::vector<R> u = FPS::build_poly_tree(Ptree, 1, 0, x.size(), x).deriv().eval(x);
         for(int i = 0; i < y.size(); i++)
             u[i] = y[i] / u[i];
-        return _interpolate_tree(tree, 1, 0, u.size(), u);
+        return _interpolate_tree(Atree, Ptree, 1, 0, u.size(), u);
     }
 
     /// @return The FPS P(x) = Prod_{i=0}^n f_i(x).
@@ -554,7 +554,7 @@ public:
 
     /// @return The pointwise product of this FPS with f.
     FPS hadamard_product(FPS const &f) {
-        FPS ret({});
+        FPS ret(0);
         for(int i = 0; i < this->size() && i < f.size(); i++)
             ret.push_back(a.at(i) * f[i]);
         ret.normalize();
@@ -590,5 +590,3 @@ std::ostream& operator<<(std::ostream& os, const FormalPowerSeries<R> &P) {
 }
 
 } // namespace zeno
-
-#endif /* End of ZENO_FPS_HPP */

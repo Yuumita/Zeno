@@ -1,6 +1,4 @@
-
-#ifndef ZENO_SPS_HPP
-#define ZENO_SPS_HPP
+#pragma once
 
 #include <vector>
 #include <iostream>
@@ -162,5 +160,3 @@ template <class R>
 using SPS = SetPowerSeries<R>;
 
 } // namespace zeno
-
-#endif /* End of ZENO_SPS_HPP*/

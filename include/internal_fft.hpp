@@ -1,5 +1,4 @@
- #ifndef INTERNAL_ZENO_FFT_HPP
- #define INTERNAL_ZENO_FFT_HPP
+#pragma once
 
 #include <math.h>
 
@@ -81,5 +80,3 @@ namespace fft {
 }  // namespace fft
 
 } // namespace zeno
-
- #endif // INTERNAL_ZENO_FFT_HPP

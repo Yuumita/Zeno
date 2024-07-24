@@ -1,5 +1,4 @@
-#ifndef ZENO_MFPS_HPP
-#define ZENO_MFPS_HPP
+#pragma once
 
 #include <stdlib.h>
 #include <array>
@@ -25,13 +24,26 @@ private:
     /// @ref https://core.ac.uk/download/pdf/82485770.pdf, https://rushcheyo.blog.uoj.ac/blog/6547
 
 
-    size_t get_index(std::array<int, N> I) {
+    static size_t get_index(std::array<int, N> const &I, std::array<int, N> const &base) {
         size_t i = 0;
         for(size_t j = 0, p = 1; j < N; j++) {
             i += I[j] * p;
-            p *= n[j];
+            p *= base[j];
         }
         return i;
+    }
+
+    size_t get_index(std::array<int, N> const &I) {
+        return get_index(I, n);
+    }
+
+    static std::array<int, N> get_digits(size_t nu, std::array<int, N> const &base) {
+        std::array<int, N> d;
+        for(size_t i = 0; i < N; i++) {
+            d[i] = nu % base[i];
+            nu = (nu - nu % base[i]) / base[i];
+        }
+        return d;
     }
 
     static std::array<int, N> merge_radix(std::array<int, N> const &A, std::array<int, N> const &B) {
@@ -41,37 +53,32 @@ private:
     }
 
     /// @brief Replace the quotient ideal with <x_0^{m[0]}, ..., x_{N-1}^{m[N-1]}>
-    mfps convert_radix(std::array<int, N> m) const {
-        /// TODO:  ...
-
-        fps T;
-        for(size_t i = 0; i < N; i++) m[i] = std::min(m[i], this->n[i]);
-
-        std::array<int, N> nn = {0};
-        for(size_t i = 0, j = 0; i < F.size(); i++) {
-
-            T[j] = F[i];
-
-            bool carry = true;
-            for(size_t k = 0; k < N && carry; k++) {
-                ++nn[k], carry = false;
-                if(nn[k] >= m[k]) 
-                    nn[k] = 0, carry = true;
-            }
-
-            if(carry) break;
-
+    mfps convert_to_radix(std::array<int, N> m) const {
+        size_t nproduct = 1;
+        for(size_t i = 0; i < N; i++) {
+            m[i] = std::min(m[i], this->n[i]);
+            nproduct *= n[i];
         }
 
+        fps &Pn = this->F, Pm(0);
+        for(size_t nu = 0; nu < nproduct; nu++) {
+            std::array<int, N> nud = get_digits(nu, n);
+            bool ok = true;
+            for(size_t i = 0; i < N && ok; i++)
+                if(nud[i] >= m[i]) ok = false;
+            if(!ok) break;
+            size_t mu = get_index(nud, m);
+            Pm[mu] = Pn[nu];
+        }
+        return mfps(m, Pm);
     }
 
 public:
     DenseMultivariateFormalPowerSeries();
-    DenseMultivariateFormalPowerSeries(std::vector<int> const &n_)
+    DenseMultivariateFormalPowerSeries(std::array<int, N> const &n_)
         : n(n_) {}
-    DenseMultivariateFormalPowerSeries(fps const f_)
-        : f(f_), n(n_) {}
-
+    DenseMultivariateFormalPowerSeries(std::array<int, N> const &n_, fps const &F_)
+        : n(n_), F(F_){}
     
     template<typename... Args>
     R& operator()(Args... args) {
@@ -81,22 +88,31 @@ public:
         return F.coef(index);
     }
 
-
     mfps& operator+=(mfps const &rhs) {
-        mfps &T = rhs;
-        if(this->n != rhs->n)
-            mfps T = rhs.convert_radix(merge_radix(this->n, rhs->n));
-        for(int i = 0; i < T->F.size(); i++)
-            this->F[i] += T->F[i];
+        if(this->n != pT->n) {
+            std::array<int, N> m = merge_radix(this->n, pT->n);
+            *this = this->convert_to_radix(m);
+            mfps T = rhs.convert_to_radix(m);
+            for(int i = 0; i < this->F.size(); i++)
+                this->F[i] += T.F[i];
+        } else {
+            for(int i = 0; i < this->F.size(); i++)
+                this->F[i] += rhs.F[i];
+        }
         return *this;
     }
 
     mfps& operator-=(mfps const &rhs) {
-        mfps &T = rhs;
-        if(this->n != rhs->n)
-            mfps T = rhs.convert_radix(merge_radix(this->n, rhs->n));
-        for(int i = 0; i < T->F.size(); i++)
-            this->F[i] -= T->F[i];
+        if(this->n != pT->n) {
+            std::array<int, N> m = merge_radix(this->n, pT->n);
+            *this = this->convert_to_radix(m);
+            mfps T = rhs.convert_to_radix(m);
+            for(int i = 0; i < this->F.size(); i++)
+                this->F[i] -= T.F[i];
+        } else {
+            for(int i = 0; i < this->F.size(); i++)
+                this->F[i] -= rhs.F[i];
+        }
         return *this;
     }
 
@@ -148,6 +164,3 @@ using dmfps = DenseMultivariateFormalPowerSeries;
     
     
 } // namespace zeno
-
-
-#endif /* ZENO_MFPS_HPP */

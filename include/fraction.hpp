@@ -1,5 +1,4 @@
-#ifndef ZENO_STRUCTURES_HPP
-#define ZENO_STRUCTURES_HPP
+#pragma once
 
 #include <iostream>
 #include <utility> // ???
@@ -136,5 +135,3 @@ using fraction = FractionLong<Z, Z>;
 
 
 } // namespace zeno
-
-#endif /* ZENO_STRUCTURES_HPP */

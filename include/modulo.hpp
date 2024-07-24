@@ -1,5 +1,4 @@
-#ifndef ZENO_MODULO_HPP
-#define ZENO_MODULO_HPP
+#pragma once
 
 #include "modular.hpp"
 
@@ -55,8 +54,3 @@ Z kronecker(Z a, Z b) {
 
 
 } // namespace zeno
-
-
-#endif /* ZENO_MODULO_HPP */
-
-    

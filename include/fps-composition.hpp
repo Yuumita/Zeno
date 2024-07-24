@@ -1,5 +1,4 @@
-#ifndef ZENO_FPS_COMPOSITION_HPP
-#define ZENO_FPS_COMPOSITION_HPP
+#pragma once
 
 #include "fps.hpp"
 
@@ -19,6 +18,3 @@ FPS<R> composition(const FPS<R> &f, const FPS<R> &G, int m) {
 
 
 } // namespace zeno
-
-
-#endif /* ZENO_FPS_COMPOSITION_HPP */
