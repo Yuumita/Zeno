@@ -212,12 +212,22 @@ private:
     static const int magic_number = 60;
     static const long long BB = (long long)(B) * B;
 
+    static std::vector<int> _mul(std::vector<int> const &a, int const &b0) {
+        std::vector<int> c(a.size() + 1);
+        long long carry = 0;
+        for(int i = 0; i < a.size() || carry; ++i) {
+            carry += (long long)(a[i]) * b0;
+            c[i]   = (int)(carry % B);
+            carry /= B;
+        }
+        _shrink(c);
+    }
 
     /// @return The multiplication, a * b, result of the (unsigned) MPIs a, b.
     static std::vector<int> _mul(std::vector<int> const &a, std::vector<int> const &b) {
         if(a.empty() || b.empty()) return {};
+        if(b.size() == 1) return _mul(a, b[0]);
         if(a.size() <= magic_number || b.size() <= magic_number) { // naive convolution
-
             std::vector<long long> c(a.size() + b.size());
             for(int i = 0; i < a.size(); i++) {
                 for(int j = 0; j < b.size(); j++) {
@@ -270,37 +280,101 @@ private:
         a = _mul(a, b);
     }
 
-    static std::pair<std::vector<int>, std::vector<int>> _div(std::vector<int> const &a, int const &b) {
-        if(b == 0) {
+    static std::pair<std::vector<int>, std::vector<int>> _div(std::vector<int> const &a, int const &b0) {
+        if(b0 == 0) {
             std::cerr << "Division by zero" << std::endl;
             exit(1);
         }
-        if(b == 1) return {a, {}};
+        if(b0 == 1) return {a, {}};
         std::vector<int> q(a.size()), r;
         long long carry = 0;
         for(int i = a.size() - 1; i >= 0; --i) {
             carry = carry * B + a[i];
-            q[i]  = (int)(carry / b);
-            carry %= b;
+            q[i]  = (int)(carry / b0);
+            carry %= b0;
         }
         _shrink(q);
         if(carry) r.push_back(carry);
         return {q, r};
     }
 
-    static std::pair<std::vector<int>, std::vector<int>> _div(std::vector<int> const &a, std::vector<int> const &b) {
+    /// @ref Knuth's ACP vol. 2, Seminumerical Algorithms
+    static std::pair<std::vector<int>, std::vector<int>> 
+    _div_long(std::vector<int> const &a, std::vector<int> const &b) {
         if(MPI::is_zero(b)) {
             std::cerr << "Division by zero" << std::endl;
             exit(1);
         }
         if(b.size() == 1) return _div(a, b[0]);
-
         if(_cmp(a, b) < 0) return {{}, a};
 
+        int K = (B - 1) / b.back(); // normalization [a//b = (Ka)//(Kb) = u//v]
+        std::vector<int> u = _mul(a, K);
+        std::vector<int> v = _mul(b, K);
+        // now v.back() >= B/2 so that 2 * v.back() >= B
+
+        std::vector<int> q(u.size() - v.size() + 1, 0);
+        std::vector<int> r(u.end() - v.size(), u.end());
+        for(int i = q.size() - 1; i >= 0; --i) {
+            if(r.size() > v.size()) {
+                int qq = ((long long)(r[r.size() - 1]) * B + r[r.size() - 2]) / v.back();
+                // qq - 2 <= Q <= qq where Q = r // v (from normalization)
+                std::vector<int> vqq = _mul(v, qq);
+
+                while(_cmp(r, vqq) < 0) qq--, vqq = _sub(vqq, v);
+                r = _sub(r, vqq);
+                while(_cmp(v, r) <= 0) qq++, r = _sub(r, v);
+                q[i] = qq;
+            } else if(r.size() == v.size()) { // from normalization qq is then at most 1
+                if(_cmp(v, r) < 0) { 
+                    q[i] = 1, r = _sub(r, v);
+                }
+            }
+            if(i > 0) r.insert(r.begin(), u[i - 1]);
+        }
+        _shrink(q), _shrink(r);
+        auto [qT, rT] = _div(r, K); // denormalization
+        return {q, qT};
     }
 
     /// @ref https://en.wikipedia.org/wiki/Division_algorithm#Newton–Raphson_division
-    /// TODO: fused multiply-add
+    static std::pair<std::vector<int>, std::vector<int>> 
+    _div_newton_raphson (std::vector<int> const &a, std::vector<int> const &b) {
+        if(MPI::is_zero(b)) {
+            std::cerr << "Division by zero" << std::endl;
+            exit(1);
+        }
+        if(b.size() <= magic_number) return _div_long(a, b);
+        if(_cmp(a, b) < 0) return {{}, a};
+
+        int K = (B - 1) / b.back(); // normalization [a//b = (Ka)//(Kb) = u//v]
+        std::vector<int> u = _mul(a, K);
+        std::vector<int> v = _mul(b, K);
+        // now v.back() >= B/2 so that 2 * v.back() >= B
+
+        std::vector<int> q(u.size() - v.size() + 1, 0);
+        std::vector<int> r(u.end() - v.size(), u.end());
+        for(int i = q.size() - 1; i >= 0; --i) {
+            if(r.size() > v.size()) {
+                int qq = ((long long)(r[r.size() - 1]) * B + r[r.size() - 2]) / v.back();
+                // qq - 2 <= Q <= qq where Q = r // v (from normalization)
+                std::vector<int> vqq = _mul(v, qq);
+
+                while(_cmp(r, vqq) < 0) qq--, vqq = _sub(vqq, v);
+                r = _sub(r, vqq);
+                while(_cmp(v, r) <= 0) qq++, r = _sub(r, v);
+                q[i] = qq;
+            } else if(r.size() == v.size()) { // from normalization qq is then at most 1
+                if(_cmp(v, r) < 0) { 
+                    q[i] = 1, r = _sub(r, v);
+                }
+            }
+            if(i > 0) r.insert(r.begin(), u[i - 1]);
+        }
+        _shrink(q), _shrink(r);
+        auto [qT, rT] = _div(r, K); // denormalization
+        return {q, qT};
+    }
 
 public:
 
