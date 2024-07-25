@@ -15,7 +15,7 @@ template <class R>
 class SetPowerSeries {
 public:
 
-    /// @brief Performs the zeta transform of f:2^[n]->R in O(n2^n).
+    /// @brief Applies the zeta transform to f:2^[n]->R in O(n2^n).
     static void zeta(std::vector<R> &f) {
         size_t N = f.size();
         assert((N & (N - 1)) == 0); // power of two
@@ -27,7 +27,7 @@ public:
         }
     }
 
-    /// @brief Performs the mobius transform of f:2^[n]->R in O(n2^n).
+    /// @brief Applies the mobius transform to f:2^[n]->R in O(n2^n).
     static void mobius(std::vector<R> &f) {
         size_t N = f.size();
         assert((N & (N - 1)) == 0); // power of two
@@ -40,7 +40,7 @@ public:
     }
 
 
-    /// @brief Computes the OR convolution (union product) of f,g:2^[n]->R in O(n2^n).
+    /// @return The OR convolution (union product) of f,g:2^[n]->R in O(n2^n).
     static std::vector<R> or_convolution(std::vector<R> f, std::vector<R> g) {
         size_t N = f.size();
         assert(N == g.size() && (N & (N-1)) == 0);
@@ -53,7 +53,7 @@ public:
         return f;
     }
 
-    /// @brief Computes the subset convolution of f,g:2^[n]->R in O(n^2 2^n).
+    /// @return The subset convolution of f,g:2^[n]->R in O(n^2 2^n).
     static std::vector<R> subset_convolution(std::vector<R> f, std::vector<R> g) {
         size_t N = f.size();
         assert(N == g.size() && (N & (N-1)) == 0);
@@ -82,7 +82,7 @@ public:
     }
 
 
-    /// @brief Computes the super zeta transform of f:2^[n]->R in O(n2^n).
+    /// @brief Applies the (superset) zeta transform to f:2^[n]->R in O(n2^n).
     static void super_zeta(std::vector<R> &f) {
         size_t N = f.size();
         assert((N & (N - 1)) == 0); // power of two
@@ -94,7 +94,7 @@ public:
         }
     }
 
-    /// @brief Computes the super mobius transform of f:2^[n]->R in O(n2^n).
+    /// @brief Applies the (superset) mobius transform to f:2^[n]->R in O(n2^n).
     static void super_mobius(std::vector<R> &f) {
         size_t N = f.size();
         assert((N & (N - 1)) == 0); // power of two
@@ -106,7 +106,7 @@ public:
         }
     }
 
-    /// @brief Computes the AND convolution (intersection product) of f,g:2^[n]->R in O(n2^n).
+    /// @return The AND convolution (intersection product) of f,g:2^[n]->R in O(n2^n).
     static std::vector<R> and_convolution(std::vector<R> f, std::vector<R> g) {
         size_t N = f.size();
         assert(N == g.size() && (N &(N-1)) == 0);
@@ -120,6 +120,7 @@ public:
     }
 
     /// @brief Computes the Walsh–Hadamard transform (n-dimensional FFT in GF(2)) of f in O(n2^n).
+    /// @param inverse if true apply the inverse WHT instead.
     static void walsh_hadamard_transform(std::vector<R> &f, bool inverse = false) {
         size_t N = f.size();
         assert((N &(N-1)) == 0);
@@ -141,7 +142,7 @@ public:
     }
 
 
-    /// @brief Computes the XOR convolution of f,g:2^[n]->R in O(n2^n).
+    /// @return The XOR convolution of f,g:2^[n]->R in O(n2^n).
     static std::vector<R> xor_convolution(std::vector<R> f, std::vector<R> g) {
         size_t N = f.size();
         assert(N == g.size() && (N &(N-1)) == 0);

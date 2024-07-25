@@ -96,10 +96,13 @@ public:
     }
 
     friend std::pair<MPI, MPI> divmod(const MPI& lhs, const MPI& rhs) {
-        auto dm = _divmod_newton(lhs.digits, rhs.digits);
-        bool dn = _is_zero(dm.first) ? false : lhs.neg != rhs.neg;
-        bool mn = _is_zero(dm.second) ? false : lhs.neg;
-        return {MPI(dn, std::move(dm.first)), MPI(mn, std::move(dm.second))};
+        std::pair<std::vector<int>, std::vector<int>> qr = MPI::_div_newton_raphson(lhs.digits, rhs.digits);
+        bool qn = qr.first.empty() ? false : lhs.neg != rhs.neg;
+        bool rn = qr.second.empty() ? false : lhs.neg;
+        MPI q = MPI(qn, std::move(qr.first));
+        MPI r = MPI(rn, std::move(qr.second));
+assert(lhs == q * rhs + r);
+        return {q, r};
     }
 
     friend MPI operator/(const MPI& lhs, const MPI& rhs) {
@@ -154,6 +157,15 @@ private:
 
     static void _shrink(std::vector<int> &a) {
         while(!a.empty() && a.back() == 0) a.pop_back();
+    }
+
+
+    void _shift(int k) {
+        _shift(digits, k);
+    }
+    static void _shift(std::vector<int> &a, int k) {
+        if(k > 0) a.insert(a.begin(), k, 0);
+        if(k < 0) a.erase(a.begin(), a.begin() - k);
     }
 
 
@@ -345,6 +357,22 @@ private:
         return {q, qT};
     }
 
+    /// @brief Calculate B^k / a using Newton's method, f[n+1] = f[n] * (2B^k - f[n] * a) / B^k
+    /// @return An approximation of B^k / a
+    static std::vector<int> _reciprocal(std::vector<int> const &a, int k) {
+        assert(!a.empty() && a.size() < k);
+        std::vector<int> f = _mul(a, {2});
+        std::vector<int> p(k+1, 0); p.back() = 2;
+
+        for(size_t i = 1; i <= std::max((size_t)a.size(), (size_t)8); i *= 2) {
+            f = _mul(f, _sub(p, _mul(f, a)));
+            _shift(f, -k);
+        }
+
+        return f;
+    }
+
+    /// TODO: check correctness
     /// @brief Newton-Raphson's integer division.
     /// @ref https://en.wikipedia.org/wiki/Division_algorithm#Newton–Raphson_division
     /// @return {Q, R} where Q, R are the (unsigned) MPI quotient, remainder of a/b.
@@ -360,10 +388,16 @@ private:
         int K = (B - 1) / b.back(); // normalization [a//b = (Ka)//(Kb) = u//v]
         std::vector<int> u = _mul(a, K);
         std::vector<int> v = _mul(b, K);
-        // now v.back() >= B/2 so that 2 * v.back() >= B
+        int s = u.size() + v.size() + 2; // uv <= B^s
 
+        std::vector<int> w = _reciprocal(v, s); // B^s // v
+        std::vector<int> q = _mul(u, w);
+        _shift(q, -s);
+        std::vector<int> vq = _mul(v, q);
 
-        /// TODO: ...
+        while(_cmp(u, vq) < 0) _sub_op(q, {1}), _sub_op(vq, v);
+        std::vector<int> r = _sub(u, vq);
+        while(_cmp(v, r) <= 0) _add_op(q, {1}), _sub_op(r, v);
 
         _shrink(q), _shrink(r);
         auto [qT, rT] = _div(r, K); // denormalization
