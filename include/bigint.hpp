@@ -6,6 +6,7 @@
 #include <iterator>
 #include <iostream>
 #include <string>
+#include "big_ntt.hpp"
 
 namespace zeno {
 
@@ -227,7 +228,9 @@ private:
     static std::vector<int> _mul(std::vector<int> const &a, std::vector<int> const &b) {
         if(a.empty() || b.empty()) return {};
         if(b.size() == 1) return _mul(a, b[0]);
-        if(a.size() <= magic_number || b.size() <= magic_number) { // naive convolution
+
+        std::vector<int> ret(a.size() + b.size() + 3, 0);
+        if(a.size() <= magic_number || b.size() <= 64) { // naive convolution
             std::vector<long long> c(a.size() + b.size());
             for(int i = 0; i < a.size(); i++) {
                 for(int j = 0; j < b.size(); j++) {
@@ -239,7 +242,6 @@ private:
                     }
                 }
             }
-            std::vector<int> ret(c.size() + 3);
             long long carry = 0;
             int i;
             for(i = 0; i < c.size(); i++) {
@@ -251,24 +253,26 @@ private:
                 ret[i++] = carry % B;
                 carry /= B;
             }
-            _shrink(ret);
-            return ret;
-        } 
 
-        // ntt convolution 
-        /// TODO: check sizes for overflows
-        std::vector<__int128_t> c = BigNTT::multiply_int128(a, b);
-        std::vector<int> ret(c.size() + 3);
-        __int128_t carry = 0;
-        int i;
-        for(i = 0; i < c.size(); i++) {
-            ret.push_back(carry % B);
-            carry /= B;
+        //} else if(a.size() <= 256 && b.size() <= 256) { // karatsuba
+
+        } else if((a.size() < 1ll << 62) && b.size() < (1ll << 62)) { // ntt convolution 
+            /// TODO: check sizes for overflows
+            std::vector<__int128_t> c = BigNTT::convolution_int128(a, b);
+            __int128_t carry = 0;
+            int i;
+            for(i = 0; i < c.size(); i++) {
+                ret.push_back(carry % B);
+                carry /= B;
+            }
+            while(carry) {
+                ret[i++] = carry % B;
+                carry /= B;
+            }
+        } else { // naive again ???
+            ret = {};
         }
-        while(carry) {
-            ret[i++] = carry % B;
-            carry /= B;
-        }
+
         _shrink(ret);
         return ret;
     }
@@ -280,6 +284,8 @@ private:
         a = _mul(a, b);
     }
 
+    /// @brief Schoolbook division with one digit divisor.
+    /// @return {Q, R} where Q, R are the (unsigned) MPI quotient, remainder of a/b.
     static std::pair<std::vector<int>, std::vector<int>> _div(std::vector<int> const &a, int const &b0) {
         if(b0 == 0) {
             std::cerr << "Division by zero" << std::endl;
@@ -298,7 +304,9 @@ private:
         return {q, r};
     }
 
+    /// @brief Long division with optimizations.
     /// @ref Knuth's ACP vol. 2, Seminumerical Algorithms
+    /// @return {Q, R} where Q, R are the (unsigned) MPI quotient, remainder of a/b.
     static std::pair<std::vector<int>, std::vector<int>> 
     _div_long(std::vector<int> const &a, std::vector<int> const &b) {
         if(MPI::is_zero(b)) {
@@ -337,7 +345,9 @@ private:
         return {q, qT};
     }
 
+    /// @brief Newton-Raphson's integer division.
     /// @ref https://en.wikipedia.org/wiki/Division_algorithm#Newton–Raphson_division
+    /// @return {Q, R} where Q, R are the (unsigned) MPI quotient, remainder of a/b.
     static std::pair<std::vector<int>, std::vector<int>> 
     _div_newton_raphson (std::vector<int> const &a, std::vector<int> const &b) {
         if(MPI::is_zero(b)) {
@@ -352,25 +362,9 @@ private:
         std::vector<int> v = _mul(b, K);
         // now v.back() >= B/2 so that 2 * v.back() >= B
 
-        std::vector<int> q(u.size() - v.size() + 1, 0);
-        std::vector<int> r(u.end() - v.size(), u.end());
-        for(int i = q.size() - 1; i >= 0; --i) {
-            if(r.size() > v.size()) {
-                int qq = ((long long)(r[r.size() - 1]) * B + r[r.size() - 2]) / v.back();
-                // qq - 2 <= Q <= qq where Q = r // v (from normalization)
-                std::vector<int> vqq = _mul(v, qq);
 
-                while(_cmp(r, vqq) < 0) qq--, vqq = _sub(vqq, v);
-                r = _sub(r, vqq);
-                while(_cmp(v, r) <= 0) qq++, r = _sub(r, v);
-                q[i] = qq;
-            } else if(r.size() == v.size()) { // from normalization qq is then at most 1
-                if(_cmp(v, r) < 0) { 
-                    q[i] = 1, r = _sub(r, v);
-                }
-            }
-            if(i > 0) r.insert(r.begin(), u[i - 1]);
-        }
+        /// TODO: ...
+
         _shrink(q), _shrink(r);
         auto [qT, rT] = _div(r, K); // denormalization
         return {q, qT};

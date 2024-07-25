@@ -91,6 +91,29 @@ template<typename Z = int64_t>
 Z sqr(Z n) { return n * n; }
 
 
+/// @brief Safely (i.e. in a way that avoid overflows) compute (a * b) mod n
+/// @return (a * b) mod n
+template<typename Z = int64_t>
+Z safe_mul_mod(Z a, Z b, Z n) {
+    bool sign = true;
+    for(Z &x: {a, b}) {
+        if(x < 0) {
+            x = -x;
+            sign = !sign;
+        }
+    }
+
+    a %= n, b %= n;
+    Z ret = 0;
+    while(b > 0) {
+        if(b % 2) {
+            ret = (ret + a) % n;
+        }
+        a = (a + a) % n, b /= 2;
+    }
+
+    return (sign ? ret : (-ret) % n);
+}
 
 
 

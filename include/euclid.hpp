@@ -2,17 +2,26 @@
 
 #include <vector>
 #include <cstdint>
+#include "internal.hpp"
 
 namespace zeno {
 
 
-// Here, Z is any Euclid domain
-
+/// @brief Euclid's gcd algorithm.
+/// @return gcd(a, b)
 template<typename Z = int64_t>
-Z gcd(Z a, Z b) { /* Euclid's algorithm */
+Z gcd(Z a, Z b) { 
     return (b == Z(0) ? a : gcd(b, a % b));
 }
 
+/// @return lcm(a, b)
+template<typename Z = int64_t>
+Z lcm(Z a, Z b) {
+    return (a / gcd(a, b)) * b;
+}
+
+/// @brief Fast implementation of Euclid's gcd algorithm.
+/// @return gcd(a, b)
 template<typename Z = int64_t>
 Z binary_gcd(Z a, Z b) { /* fast implementation of Euclid's algorithm */
     if(a < b) std::swap(a, b);
@@ -50,12 +59,19 @@ Z binary_gcd(Z a, Z b) { /* fast implementation of Euclid's algorithm */
 }
 
 template<typename Z = int64_t>
-Z _gcd(Z a, Z b) { /* Euclid's algorithm */
-    static_assert(std::is_integral_v<Z>, "Template parameter Z should be integral for binary_gcd");
-    return binary_gcd(a, b);
+Z _gcd(Z a, Z b) {
+    if constexpr (std::is_integral_v<Z>)
+        return binary_gcd(a, b);
+    return gcd(a,b);
 }
 
-// Extended Euclid's algorithm, returns gcd(a, b) and sets x, y to those s.t. ax + by = gcd(a, b)
+template<typename Z = int64_t>
+Z _lcm(Z a, Z b) {
+    return (a / _gcd(a, b)) * b;
+}
+
+/// @brief Extended Euclid's algorithm. x, y are set to those s.t. ax + by = gcd(a, b)
+/// @return gcd(a, b)
 template <typename Z = int64_t>
 Z extended_gcd(Z a, Z b, Z &x, Z &y) {
     if (b == 0) {
@@ -76,33 +92,13 @@ Z extended_gcd(Z a, Z b, Z &x, Z &y) {
 //}
 
 
-/// @brief Safely (i.e. in a way that avoid overflows) compute (a * b) mod n
-template<typename Z = int64_t>
-Z safe_mul_mod(Z a, Z b, Z n) {
-    bool sign = true;
-    for(Z &x: {a, b}) {
-        if(x < 0) {
-            x = -x;
-            sign = !sign;
-        }
-    }
 
-    a %= n, b %= n;
-    Z ret = 0;
-    while(b > 0) {
-        if(b % 2) {
-            ret = (ret + a) % n;
-        }
-        a = (a + a) % n, b /= 2;
-    }
 
-    return (sign ? ret : (-ret) % n);
-}
-
-/// @brief Compute a solution to the diophantine equation ax + by = c. 
+/// @brief Compute a solution to the linear diophantine equation ax + by = c. If a solution
+///        exists then the variables x, y are set to one solution and g to gcd(a, b).
 /// @return true iff ax + by = c has at least one solution.
 template<typename Z = int64_t>
-bool solve_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
+bool solve_linear_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
     if (a == 0 && b == 0) {
         if (c == 0) {
             x = y = g = 0;
@@ -138,13 +134,17 @@ bool solve_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
     c -= dx * a;
     Z dy = c / b;
     c -= dy * b;
-    x = dx + safe_mul_mod(x, c / g, b);
-    y = dy + safe_mul_mod(y, c / g, a);
+    x = dx + internal::safe_mul_mod(x, c / g, b);
+    y = dy + internal::safe_mul_mod(y, c / g, a);
     g = (g < 0 ? -g: g);
     return true;
 }
 
 
+/// @brief Apply the inductive CRT to solve for the number X such that X = x[i] (mod m[i]). 
+///        The moduli m[i] should be pairwise coprime.
+/// @ref https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Existence_(constructive_proof)
+/// @return An integer X such that X = x[i] (mod m[i])
 template<typename Z = int64_t>
 Z inductive_chinese_remainder_theorem(std::vector<Z> const &m, std::vector<Z> const x) {
     assert(m.size() == x.size());

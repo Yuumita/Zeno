@@ -49,6 +49,7 @@ Z pollard_rho(Z N, Z x0 = 2, Z c = 1) {
         y = _G(_G(y, c, N), c, N);
         g = zeno::gcd((x < y ? y - x : x - y), N);
     }
+    if(N % g != 0) g = N;
     return g;
 }
 
@@ -108,12 +109,12 @@ bool is_prime(Z n) {
     return miller_rabin<Z>(n);
 }
 
-/// @return A factor of n if n has a factor else n
+/// @return A prime factor of n if n has a factor else n
 template<class Z = int64_t>
 Z find_prime_factor(Z n) {
     if(n < 0) n = -n; // maybe that's unexpected???
-    if(n <= 1) return n;
-    if(n & 0) return 2;
+    if(n <= 3) return n;
+    if(n % 2 == 0) return 2;
     if(has_precomputed_esieve && n <= MAX_ESIEVE_NUM) 
         return spf[n];
 
@@ -125,7 +126,10 @@ Z find_prime_factor(Z n) {
     if(miller_rabin<Z>(d)) 
         return d;
 
-    for(d = 2; d*d <= n; d++)
+    if(miller_rabin<Z>(n)) 
+        return n;
+
+    for(d = 5; d*d <= n; d += 2) // already tested for n % 2 == 0
         if(n % d == 0) 
             return d;
 
@@ -139,11 +143,13 @@ std::vector<Z> factorize(Z n) {
     if(!has_precomputed_esieve) prime_sieve();
 
     std::vector<Z> ret;
-    do {
+    while(n > 1) {
         Z d = find_prime_factor(n);
-        ret.push_back(d);
-        n /= d;
-    } while(n > 1);
+        do {
+            ret.push_back(d);
+            n /= d;
+        } while(n % d == 0);
+    }
 
     return ret;
 }
@@ -163,8 +169,10 @@ void standard_factorize(Z n, std::vector<Z> &p, std::vector<Z> &v) {
 
 } // namespace primality
 
-namespace internal
-{
+
+
+/// @brief constexpr primality tests
+namespace internal {
 
 template<class Z = int64_t>
 constexpr bool check_composite_constexpr(Z n, Z a, Z d, Z s) {
