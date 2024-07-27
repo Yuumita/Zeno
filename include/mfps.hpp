@@ -7,6 +7,7 @@
 
 namespace zeno {
 
+/// TODO: Complete the class
 /// @brief Implementation of the ring R[[x_0, ...,x_{N-1}]] / <x_0^n[0], ..., x_{N-1}^n[N-1]>.
 /// @tparam R The ring R.
 /// @tparam N the number of indetermined variables.
@@ -22,7 +23,6 @@ private:
     /// [x^i]F = [x^{(i_0, i_1, ..., i_{N-1})}]F where  
     /// (i_0, ..., i_{N-1}) is the mixed radix of i w/r to (n[0], ..., n[N-1])
     /// @ref https://core.ac.uk/download/pdf/82485770.pdf, https://rushcheyo.blog.uoj.ac/blog/6547
-
 
     static size_t get_index(std::array<int, N> const &I, std::array<int, N> const &base) {
         size_t i = 0;
@@ -73,6 +73,18 @@ private:
         return mfps(m, Pm);
     }
 
+
+    /// TODO: rename the following
+    /// @brief Make G the same radix as H
+    static void make_same_radix(mfps &G, mfps &H) {
+        if(G.n != H.n) {
+            std::array<int, N> m = merge_radix(G.n, H.n);
+            G = G.convert_to_radix(m);
+            H = H.convert_to_radix(m);
+        }
+    }
+
+
 public:
     DenseMultivariateFormalPowerSeries();
     DenseMultivariateFormalPowerSeries(std::array<int, N> const &n_)
@@ -89,35 +101,38 @@ public:
     }
 
     mfps& operator+=(mfps const &rhs) {
-        if(this->n != pT->n) {
-            std::array<int, N> m = merge_radix(this->n, pT->n);
-            *this = this->convert_to_radix(m);
-            mfps T = rhs.convert_to_radix(m);
-            for(int i = 0; i < this->F.size(); i++)
-                this->F[i] += T.F[i];
+        if(this->n != rhs.n) {
+            assert(false);
+            mfps T = rhs;
+            make_same_radix(*this, T);
+            this->F += T.F;
         } else {
-            for(int i = 0; i < this->F.size(); i++)
-                this->F[i] += rhs.F[i];
+            this->F += rhs.F;
         }
         return *this;
     }
 
     mfps& operator-=(mfps const &rhs) {
-        if(this->n != pT->n) {
-            std::array<int, N> m = merge_radix(this->n, pT->n);
-            *this = this->convert_to_radix(m);
-            mfps T = rhs.convert_to_radix(m);
-            for(int i = 0; i < this->F.size(); i++)
-                this->F[i] -= T.F[i];
+        if(this->n != rhs.n) {
+            assert(false);
+            mfps T = rhs;
+            make_same_radix(*this, T);
+            this->F -= T.F;
         } else {
-            for(int i = 0; i < this->F.size(); i++)
-                this->F[i] -= rhs.F[i];
+            this->F -= rhs.F;
         }
         return *this;
     }
 
     mfps& operator*=(mfps const &rhs) {
-        /// TODO: ...
+        if(this->n != rhs.n) {
+            assert(false);
+            mfps T = rhs;
+            make_same_radix(*this, T);
+            this->F = fft::multivariate_convolution<FPS, N>(this->F, T.F, this->n);
+        } else {
+            this->F = fft::multivariate_convolution<FPS< N>(this->F, rhs.F, this->n);
+        }
         return *this;
     }
 
@@ -155,6 +170,15 @@ public:
 
     mfps operator+() const { return mfps(*this); }
     mfps operator-() const { return mfps(-F, base); }
+
+    // friend bool operator==(const mfps& lhs, const mfps& rhs) {
+    //     return lhs.f == rhs.f && lhs.base == rhs.base;
+    // }
+    // friend bool operator!=(const mfps& lhs, const mfps& rhs) {
+    //     return lhs.f != rhs.f || lhs.base != rhs.base;
+    // }
+
+
 
 };
 

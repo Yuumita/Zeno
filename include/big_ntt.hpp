@@ -7,8 +7,7 @@
 namespace zeno
 {
     
-
-/// @ref nyaannyaan, https://cp-algorithms.com/algebra/garners-algorithm.html
+/// @ref NyaanNyaan, https://cp-algorithms.com/algebra/garners-algorithm.html
 class BigNTT {
     using int128_t = __int128_t;
 private:

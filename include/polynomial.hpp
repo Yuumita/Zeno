@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <iostream>
 #include <cstdint>
 #include <stdlib.h> /* abs */
 #include <array>
@@ -10,25 +11,31 @@ namespace zeno {
 
 /// @brief Implementation of mononomials in the ring R[x_0, ..., x_{n-1}]
 template <class R, size_t n>
-class Mononomial {
+class MononomialTerm {
 private:
     R coefficient;
-    std::array<R, n> exponent;
+    std::array<int, n> exponent;
+
 public:
-    Mononomial(R c_, std::aray<R, n> e_)
+    MononomialTerm(R c_)
+       : coefficient(c_), exponent{} {};
+
+    MononomialTerm(R c_, std::initializer_list<R> const &l) : coefficient(c_) {
+        assert(l.size() == n);
+        std::copy(l.begin(), l.end(), exponent.begin());
+    };
+    MononomialTerm(R c_, std::array<int, n> const &e_)
        : coefficient(c_), exponent(e_) {};
     
     /// @return Mutable reference of the coefficient
-    R& coef() { 
-        return coefficient;
-    }
+    R& coef() { return coefficient; }
+    const R& coef() const { return coefficient; }
 
     /// @return Mutable reference of the exponent array
-    std::array<R, n> &expo() { 
-        return exponent;
-    }
+    std::array<int, n> &expo() { return exponent; }
+    const std::array<int, n> &expo() const { return exponent; }
 
-    size_t deg() {
+    size_t deg() const {
         size_t ret = 0;
         for(size_t i = 0; i < n; i++)
             ret += exponent[i];
@@ -38,68 +45,68 @@ public:
 
     /// BE CAREFUL OF THE WAY THE COMPARISONS ARE DEFINED (lex order)
     
-    bool operator==(const Mononomial &rhs) const {
+    bool operator==(const MononomialTerm &rhs) const {
         return exponent == rhs.exponent;
     }
-    bool operator!=(const Mononomial &rhs) const {
-        return exponent != rhs.exponent);
+    bool operator!=(const MononomialTerm &rhs) const {
+        return exponent != rhs.exponent;
     }
-    bool operator<(const Mononomial &rhs) const {
+    bool operator<(const MononomialTerm &rhs) const {
         return exponent < rhs.exponent;
     }
-    bool operator<=(const Mononomial &rhs) const {
+    bool operator<=(const MononomialTerm &rhs) const {
         return exponent <= rhs.exponent;
     }
-    bool operator>(const Mononomial &rhs) const {
+    bool operator>(const MononomialTerm &rhs) const {
         return exponent > rhs.exponent;
     }
-    bool operator=>(const Mononomial &rhs) const {
-        return exponent => rhs.exponent;
+    bool operator>=(const MononomialTerm &rhs) const {
+        return exponent >= rhs.exponent;
     }
 
-    Mononomial& operator+=(const Mononomial &rhs) {
+    MononomialTerm& operator+=(const MononomialTerm &rhs) {
         assert(this->exponent == rhs.exponent);
         this->coef() += rhs.coef();
         return *this;
     }
 
-    Mononomial& operator-=(const Mononomial &rhs) {
+    MononomialTerm& operator-=(const MononomialTerm &rhs) {
         assert(this->exponent == rhs.exponent);
         this->coef() -= rhs.coef();
         return *this;
     }
 
-    Mononomial& operator*=(const Mononomial &rhs) {
-        std::array<R, n> e;
+    MononomialTerm& operator*=(const MononomialTerm &rhs) {
+        std::array<int, n> e;
         for(size_t i = 0; i < n; i++)
             e[i] = this->exponent[i] + rhs->exponent[i];
-        *this = Mononomial(this->coef() * rhs.coef(), e);
+        *this = MononomialTerm(this->coef() * rhs.coef(), e);
         return *this;
     }
 
-    Mononomial& operator/=(const Mononomial &rhs) {
-        std::array<R, n> e;
+    MononomialTerm& operator/=(const MononomialTerm &rhs) {
+        std::array<int, n> e;
         for(size_t i = 0; i < n; i++) {
             e[i] = this->exponent[i] - rhs->exponent[i];
             assert(e[i] >= 0);
         }
-        *this = Mononomial(this->coef() / rhs.coef(), e);
+        *this = MononomialTerm(this->coef() / rhs.coef(), e);
         return *this;
     }
 
-    friend Mononomial operator+(const Mononomial &lhs, const Mononomial &rhs) { return Mononomial(lhs) += rhs; }
-    friend Mononomial operator-(const Mononomial &lhs, const Mononomial &rhs) { return Mononomial(lhs) -= rhs; }
-    friend Mononomial operator*(const Mononomial &lhs, const Mononomial &rhs) { return Mononomial(lhs) *= rhs; }
-    friend Mononomial operator/(const Mononomial &lhs, const Mononomial &rhs) { return Mononomial(lhs) /= rhs; }
+    friend MononomialTerm operator+(const MononomialTerm &lhs, const MononomialTerm &rhs) { return MononomialTerm(lhs) += rhs; }
+    friend MononomialTerm operator-(const MononomialTerm &lhs, const MononomialTerm &rhs) { return MononomialTerm(lhs) -= rhs; }
+    friend MononomialTerm operator*(const MononomialTerm &lhs, const MononomialTerm &rhs) { return MononomialTerm(lhs) *= rhs; }
+    friend MononomialTerm operator/(const MononomialTerm &lhs, const MononomialTerm &rhs) { return MononomialTerm(lhs) /= rhs; }
 
-    Mononomial operator+() const { return Mononomial(*this); }
-    Mononomial operator-() const { 
-        Mononomial m = Mononomial(*this);
+    MononomialTerm operator+() const { return MononomialTerm(*this); }
+    MononomialTerm operator-() const { 
+        MononomialTerm m = MononomialTerm(*this);
         m.coef() = -m.coef();
         return m;
     }
 
-    bool divides(Mononomial const &m) {
+    bool divides(MononomialTerm const &m) {
         for(size_t i = 0; i < n; i++)
             if(m.exponent[i] < this->exponent[i]) 
                 return false;
@@ -113,12 +120,13 @@ public:
 template <class R, size_t n>
 class SparseMultivariatePolynomial {
     using SMPoly = SparseMultivariatePolynomial;
+    using Mononomial = MononomialTerm<R, n>;
 private:
     std::vector<Mononomial> terms;
     bool normalized;
 
     void normalize() {
-       std::vector<Mononomial> t = terms;
+        std::vector<Mononomial> t = terms;
         terms.clear();
         std::sort(begin(t), end(t));
         for(int i = 0; i < t.size(); i++) {
@@ -126,13 +134,24 @@ private:
             int j = i;
             while(j + 1 < t.size() && t[j].expo() == t[j+1].expo()) 
                 j++, s += t[j].coef();
-            terms.push_back(s); 
+            terms.emplace_back(s, t[i].expo()); 
             i = j;
         }
         normalized = true;
     }
 
 public:
+
+    SparseMultivariatePolynomial() : terms({}) {}
+    SparseMultivariatePolynomial(Mononomial const &m) : terms({m}) {}
+
+    std::vector<Mononomial>& get_terms() {
+        return terms;
+    }
+
+    const std::vector<Mononomial>& get_terms() const {
+        return terms;
+    }
 
     /// @return The leading term.
     Mononomial LT() {
@@ -161,7 +180,7 @@ public:
     }
 
     SMPoly& operator+=(const SMPoly &rhs) {
-        this->terms.insert(this->terms->end(), rhs.terms.begin(), rhs.terms.end());
+        this->terms.insert(this->terms.end(), rhs.terms.begin(), rhs.terms.end());
         normalize();
         return *this;
     }
@@ -225,5 +244,26 @@ public:
     }
 
 };
+
+template <class R, size_t n>
+std::ostream& operator<<(std::ostream& os, MononomialTerm<R, n> const &m) {
+    os << m.coef() << "x^(";
+    for(size_t i = 0; i < n; i++) 
+        os << m.expo()[i] << ", "[i + 1 >= n];
+    os << ")";
+    return os;
+}
+
+template <class R, size_t n>
+std::ostream& operator<<(std::ostream& os, SparseMultivariatePolynomial<R, n> const &P) {
+    os << "{ ";
+    for(MononomialTerm<R, n> const &m: P.get_terms()) {
+        os << m << " ";
+    }
+    os << "}";
+    return os;
+}
+
+
 
 } // namespace zeno

@@ -12,8 +12,6 @@ namespace zeno {
 
 namespace fft {
 
-
-
     using ftype = long double;
     const ftype PI = acos(-1); 
 
@@ -202,7 +200,34 @@ namespace fft {
         return fa;
     }
 
-    const size_t magic_number = 0; // 60;
+
+
+
+
+    /// @ref https://core.ac.uk/download/pdf/82485770.pdf, https://www.luogu.com/article/wje8kchr, https://rushcheyo.blog.uoj.ac/blog/6547
+    /// @brief Computes the multivariate convolution G(x1, ..., xN) H(x1, ..., xN) (mod <x1^n1, ..., xN^nN>).
+    /// @pre [x^I]A (as multivariate) -> [x^i]B (as univariate) where I = (i1, ..., iN) is in mixed-radix wrt n and i = i1 + n1(i2 + n2(...)).
+    /// @return The resulting FPS (in mixed-radix wrt n)
+    template <typename FPS, size_t N>
+    FPS multivariate_convolution(FPS const &A, FPS const &B, std::array<int, N> n) {
+        if(N == 0) return FPS(A[0] * B[0]);
+
+        size_t l = std::max(A.size(), B.size());
+        size_T L = compute_convolution_size(l, l);
+
+        std::vector<int> chi(l, 0);
+        for(size_t i = 0; i < l; ++i) {
+            for(size_t j = 0, tmp = i / n[j]; j < N; ++j, tmp /= n[j])
+                chi(i) += tmp;
+            // chi[i] %= N
+        }
+
+        // TODO: ...
+
+    }
+
+
+    const size_t magic_number = 0; // 64;
 
 } // namespace fft
 

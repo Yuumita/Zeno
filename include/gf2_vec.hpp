@@ -18,8 +18,7 @@ private:
 public:
 
 
-    GF2Vector() {
-    }
+    GF2Vector() : data(0) {}
 
     GF2Vector(std::bitset<d> const &b) {
         data = b;

@@ -19,7 +19,6 @@ class FormalPowerSeries {
 
 private:
     std::vector<R> a;
-
 public:
     /// @brief Reduce the 0 coefficients of the FPS (i.e remove all trailing zeroes).
     void normalize(){
@@ -31,8 +30,11 @@ public:
     size_t size()           const { return a.size(); }
     R& at(size_t i)         { return a.at(i); }
 
-    R& operator[](size_t i)             { return a[i]; }
     const R& operator[](size_t i) const { return a[i]; }
+    R& operator[](size_t i) { 
+        if(i >= this->a.size()) this->a.resize(i + 1, R(0));
+        return this->a[i]; 
+    }
 
     void push_back(R const &v) { a.push_back(v); }
     void pop_back()            { a.pop_back(); }
@@ -55,22 +57,21 @@ public:
 
     /// @brief Constructs a new (constant, i.e of 0 degree) FPS object which is just v.
     FormalPowerSeries(const R &v) {
-        a.assign(1, v);
+        a = {v};
         normalize();
     }
 
     /// @brief Constructss a new FPS object of degree n-1 with initial values v.
     FormalPowerSeries(const int n, const R &v) {
-        a.resize(n);
-        for(int i = 0; i < n; i++) a.at(i) = v;
+        this->a.assign(n, v);
         normalize();
     }
 
-    // /// @brief Constructss a new FPS object with coefficients given by the iterators begin, end.
-    // FormalPowerSeries(std::vector<R>::iterator begin, std::vector<R>::iterator end) {
-    //     this->assign(begin, end);
-    //     normalize();
-    // }
+    /// @brief Constructss a new FPS object with coefficients given by the iterators begin, end.
+    template <typename Iterator>
+    FormalPowerSeries(Iterator begin, Iterator end) : a(begin, end) {
+        normalize();
+    }
 
     /// @return The degree of the FPS (-1 if the FPS is zero)
     int deg() const {
@@ -190,7 +191,7 @@ public:
     }
 
     FPS& operator/=(const R &rhs) {
-        for(auto &e: this) e /= rhs;
+        for(R &e: this->a) e /= rhs;
         return *this;
     }
 
@@ -255,7 +256,7 @@ public:
 
     /// @return A copy of *this times x^k (coefficients shifted k steps to the right)
     FPS times_xk(int k) const {
-        std::vector<R> coefs = *this;
+        std::vector<R> coefs = this->a;
         coefs.insert(coefs.begin(), k, R(0));
         return FPS(coefs);
     }
@@ -263,7 +264,7 @@ public:
 
     /// @return A copy of *this with coefficients shifted k steps to the left
     FPS floordiv_xk(int k) const {
-        return FPS(std::vector<R>(this->begin() + k, this->end()));
+        return FPS(std::vector<R>(std::next(this->a.begin(), k), this->a.end()));
     }
     inline static FPS floordiv_xk(FPS &f, int k) { return f.floordiv_xk(k); }
 
@@ -308,9 +309,13 @@ public:
     }
     inline static FPS inv(FPS &f, int m = deg() + 1) { return f.inv(m); }
 
-    /// @return A copy of *this with the coefficients reversed.
-    FPS reverse() const {
-        return FPS(std::vector<R>(a.rbegin(), a.rend()));
+    /// @return A copy of (*this mod x^k) with the coefficients reversed.
+    FPS reverse(size_t k = 0) const {
+        if(k) {
+            std::vector<R> v = this->a; v.resize(k, R(0));
+            return FPS(std::vector<R>(v.rbegin(), v.rend()));
+        }
+        return FPS(std::vector<R>(this->a.rbegin(), this->a.rend()));
     }
     inline static FPS reverse(FPS &f) { return f.reverse(); }
 
@@ -346,14 +351,13 @@ public:
         std::vector<R> res(deg() - k +  1, R(0));
         if(k == 1) {
             for(int i = 1; i <= deg(); i++)
-                res[i - 1] = a.at(i) * R(i);
+                res[i - 1] = this->a[i] * R(i);
         } else {
             for(int i = k; i <= deg(); i++)
-                res[i - k] = a.at(i) * internal::fact<R>(i) * internal::inv_fact<R>(i - k);
+                res[i - k] = this->a[i] * internal::fact<R>(i) * internal::inv_fact<R>(i - k);
         }
         return FPS(res);
     }
-
     inline static FPS deriv(FPS &f, int k = 1) { return f.deriv(k); }
 
 
@@ -402,15 +406,15 @@ public:
         }
 
         if(k < 0)
-            return pow(-k, m).inv();
+            return this->pow(-k, m).inv();
 
         int ord = this->ord();
-        R a = a.at(ord);
-        FPS T(this->begin() + ord, this->end());
-        T /= a; // P(x) = ax^ord T(x); T(0) = 1
+        R alpha = this->coef(ord);
+        FPS T   = this->floordiv_xk(ord);
+        T /= alpha; // P(x) = ax^ord T(x); T(0) = 1
         
         // P(x)^k = a^k x^{k*ord} T(x)^k = a^k x^{k*ord} exp[klnT(x)]
-        return (T.log(m) * k).exp(m).shift(k * ord) * internal::pow(a, k);
+        return (T.log(m) * R(k)).exp(m).shift(k * ord) * internal::pow(alpha, k);
     }
 
     /// @return The value of the FPS at point x0 
@@ -502,19 +506,21 @@ public:
     /// @return The Borel transformation of the FPS (a_k x^k -> a_k / k! x^k).
     FPS borel() const {
         FPS ret = FPS(*this);
-        for(int k = 0; k <= deg(); k++)
-            ret[k] *= internal::inv_fact(k);
+        for(int k = 0; k <= ret.deg(); k++)
+            ret[k] *= internal::inv_fact<R>(k);
         return ret;
     }
 
     /// @return The inverse Borel (Laplace) transformation of the FPS (a_k x^k -> k!a_k x^k).
     FPS inv_borel() const {
         FPS ret = FPS(*this);
-        for(int k = 0; k <= deg(); k++)
-            ret[k] *= internal::fact(k);
+        for(int k = 0; k <= ret.deg(); k++)
+            ret[k] *= internal::fact<R>(k);
         return ret;
     }
 
+
+    /// TODO: check that euclid division and gcds work properly
 
     static std::pair<FPS, FPS> euclid_division(FPS const &A, FPS const &B) {
         return A.div(B);
@@ -544,19 +550,19 @@ public:
 
     /// @return P(x + c) where P is this FPS.
     FPS taylor_shift(R c) {
-        size_t n = this->deg();
-        FPS a, b; a.resize(n), b.resize(n);
-        R cc = c;
-        for(int i = 0; i < n; i++) a[i] = internal::fact(i) * a.at(i);
-        for(int i = 0; i < n; i++) b[i] = cc * internal::inv_fact(i), cc *= c;
-        return (a * b).borel();
+        size_t d = this->deg();
+        FPS A(0), B(0); A.resize(d + 1), B.resize(d + 1);
+        R cc = R(1);
+        for(int i = 0; i <= d; i++) A[i] = internal::fact<R>(i) * this->a[i];
+        for(int i = 0; i <= d; i++) B[i] = cc * internal::inv_fact<R>(i), cc *= c;
+        return (A.reverse(d + 1) * B).reverse(d + 1).borel();
     }
 
     /// @return The pointwise product of this FPS with f.
-    FPS hadamard_product(FPS const &f) {
-        FPS ret(0);
+    FPS hadamard_product(FPS const &f) const {
+        FPS ret(std::min(this->size(), f.size()), R(0));
         for(int i = 0; i < this->size() && i < f.size(); i++)
-            ret.push_back(a.at(i) * f[i]);
+            ret.a[i] = this->a[i] * f[i];
         ret.normalize();
         return ret;
     }
@@ -578,7 +584,6 @@ template<class R>
 FormalPowerSeries<R> operator/(const R &lhs, const FormalPowerSeries<R> &rhs) {
     return FPS(lhs) /= rhs;
 }
-
 
 template<class R>
 std::ostream& operator<<(std::ostream& os, const FormalPowerSeries<R> &P) {

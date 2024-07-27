@@ -14,7 +14,6 @@ namespace zeno
 template <typename Z, Z MOD, typename longZ = int64_t>
 class static_modular {
     static_assert(1 <= MOD, "Template parameter MOD must be greater than or equal to 1.");
-    static_assert(std::is_integral<Z>::value, "Template parameter Z must be integral.");
     using modular = static_modular<Z, MOD, longZ>;
     using uZ = std::make_unsigned_t<Z>;
     using longuZ = std::make_unsigned_t<longZ>;
@@ -120,7 +119,6 @@ public:
         assert(a*u + b*v == 1); // (b*v == 0) TODO: test this 
         return modular(u);
     }
-
     modular inverse() const { return inv(); }
 
     friend std::ostream &operator<<(std::ostream &os, const modular &p) { return os << p.v; }

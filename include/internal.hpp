@@ -13,9 +13,9 @@ namespace internal
 template<typename Z = int64_t>
 Z fact(int n) {
     if(n < 0) return Z(0);
-    static std::vector<Z> _factorial({1});
+    static std::vector<Z> _factorial({Z(1)});
     while(_factorial.size() <= n)
-        _factorial.push_back(_factorial.back() * _factorial.size());
+        _factorial.push_back(Z(_factorial.back()) * Z(_factorial.size()));
     return _factorial[n];
 }
 
@@ -23,9 +23,9 @@ Z fact(int n) {
 template<typename Z = int64_t>
 Z inv_fact(int n) {
     if(n < 0) return Z(0);
-    static std::vector<Z> _inv_factorial({1});
+    static std::vector<Z> _inv_factorial({Z(1)});
     while(_inv_factorial.size() <= n)
-        _inv_factorial.push_back(_inv_factorial.back() / _inv_factorial.size());
+        _inv_factorial.push_back(Z(_inv_factorial.back()) / Z(_inv_factorial.size()));
     return _inv_factorial[n];
 }
 
@@ -73,7 +73,7 @@ constexpr Z binary_exponentiation_mod_constexpr(Z base, Z e, Z mod) {
 /* G should form a group, Z should be an integer struct */
 template<class G = int64_t, class Z = int64_t>
 G binary_exponentiation(G g, Z n) {
-    if(n < 0) g = 1/g, n = -n;
+    if(n < 0) g = G(1)/g, n = -n;
     G x = g, y = G(1);
     while(n > 0) {
         if(n % 2 == 1) y *= x;

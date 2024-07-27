@@ -99,7 +99,6 @@ public:
 
 
     void transform(std::vector<M> &a, bool inverse = false) {
-        static_assert(zeno::is_modular_v<M>, "Template parameter M must be modular (modint).");
 
         size_t n = a.size(), s = 0;
         if(n <= 1) return;
