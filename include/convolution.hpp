@@ -213,12 +213,12 @@ namespace fft {
         if(N == 0) return FPS(A[0] * B[0]);
 
         size_t l = std::max(A.size(), B.size());
-        size_T L = compute_convolution_size(l, l);
+        size_t L = compute_convolution_size(l, l);
 
         std::vector<int> chi(l, 0);
         for(size_t i = 0; i < l; ++i) {
             for(size_t j = 0, tmp = i / n[j]; j < N; ++j, tmp /= n[j])
-                chi(i) += tmp;
+                chi[i] += tmp;
             // chi[i] %= N
         }
 

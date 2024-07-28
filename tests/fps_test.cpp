@@ -49,6 +49,29 @@ void test(int n) {
         assert(f.exp(n+1).log(n+1) == f.mod_xk(n+1));
     }
 
+    // pow
+    {
+        FPS f = FPS(a), g = FPS(1);
+        int k = rand() & 0xFF;
+        for(int i = 0; i < k; i++) g = (f*g).mod_xk(n+1);
+        assert(f.pow(k, n+1) == g);
+    }
+
+    // borel transform
+    {
+        FPS f = FPS(a);
+        assert(f.borel().inv_borel() == f);
+    }
+
+    // Taylor shift
+    {
+        FPS f = FPS(a), g = FPS(a);
+        T c = T(rand() & 0xFF);
+        f = f.taylor_shift(c);
+        for(int i = 0; i < n; i++) 
+            assert(f.eval(T(i)) == g.eval(T(i) + c));
+    }
+
     // multipoint evaluation
     {
         FPS f = FPS(a);
@@ -73,8 +96,12 @@ void test(int n) {
 
 int main() {
     srand(time(0));
-    for(int N = 100; N <= 150; N++) { // n = logN <= 10
-        test<zeno::modint998244353>(N);
+    zeno::FPS<zeno::modint998244353> f;
+    f = {0, 0, 0, 1};
+    cout << f << " -> " << f.taylor_shift(3) << endl;;
+    
+    for(int N = 200; N <= 800; N *= 2) { // n = logN <= 10
         cerr << "N = " << N << endl;
+        test<zeno::modint998244353>(N);
     }
 }

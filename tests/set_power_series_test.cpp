@@ -24,21 +24,21 @@ void test(int n) {
         d = a;
         SPS::zeta(d);
         SPS::mobius(d);
-        assert(a == d && "subset");
+        assert(a == d);
     }
 
     {
         d = a;
         SPS::super_zeta(d);
         SPS::super_mobius(d);
-        assert(a == d && "superset");
+        assert(a == d);
     }
 
     {
         d = a;
         SPS::walsh_hadamard_transform(d);
         SPS::walsh_hadamard_transform(d, true);
-        assert(a == d && "hadamard");
+        assert(a == d);
     }
 
     // and convolution
@@ -46,7 +46,7 @@ void test(int n) {
         d = SPS::and_convolution(a, b);
         c.assign(n, 0);
         rep(i, n) rep(j, n) c[i & j] += a[i] * b[j];
-        assert(c == d && "and");
+        assert(c == d);
     }
 
     // or convolution
@@ -54,7 +54,7 @@ void test(int n) {
         d = SPS::or_convolution(a, b);
         c.assign(n, 0);
         rep(i, n) rep(j, n) c[i | j] += a[i] * b[j];
-        assert(c == d && "or");
+        assert(c == d);
     }
 
     // xor convolution
@@ -62,7 +62,7 @@ void test(int n) {
         d = SPS::xor_convolution(a, b);
         c.assign(n, 0);
         rep(i, n) rep(j, n) c[i ^ j] += a[i] * b[j];
-        assert(c == d && "xor");
+        assert(c == d);
     }
 }
 
