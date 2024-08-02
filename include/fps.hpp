@@ -8,6 +8,8 @@
 #include "convolution.hpp"
 #include "internal.hpp"
 
+#include "binomial.hpp"
+
 
 namespace zeno {
 
@@ -15,6 +17,7 @@ namespace zeno {
 /// @tparam R The coefficient ring
 template<typename R>
 class FormalPowerSeries {
+
     using FPS = FormalPowerSeries;
 
 private:
@@ -354,7 +357,7 @@ public:
                 res[i - 1] = this->a[i] * R(i);
         } else {
             for(int i = k; i <= deg(); i++)
-                res[i - k] = this->a[i] * internal::fact<R>(i) * internal::inv_fact<R>(i - k);
+                res[i - k] = this->a[i] * Binomial<R>::factorial(i) * Binomial<R>::ifactorial(i - k);
         }
         return FPS(res);
     }
@@ -507,7 +510,7 @@ public:
     FPS borel() const {
         FPS ret = FPS(*this);
         for(int k = 0; k <= ret.deg(); k++)
-            ret[k] *= internal::inv_fact<R>(k);
+            ret[k] *= Binomial<R>::ifactorial(k);
         return ret;
     }
 
@@ -515,7 +518,7 @@ public:
     FPS inv_borel() const {
         FPS ret = FPS(*this);
         for(int k = 0; k <= ret.deg(); k++)
-            ret[k] *= internal::fact<R>(k);
+            ret[k] *= Binomial<R>::factorial(k);
         return ret;
     }
 
@@ -553,8 +556,8 @@ public:
         size_t d = this->deg();
         FPS A(0), B(0); A.resize(d + 1), B.resize(d + 1);
         R cc = R(1);
-        for(int i = 0; i <= d; i++) A[i] = internal::fact<R>(i) * this->a[i];
-        for(int i = 0; i <= d; i++) B[i] = cc * internal::inv_fact<R>(i), cc *= c;
+        for(int i = 0; i <= d; i++) A[i] = Binomial<R>::factorial(i) * this->a[i];
+        for(int i = 0; i <= d; i++) B[i] = cc * Binomial<R>::ifactorial(i), cc *= c;
         return (A.reverse(d + 1) * B).reverse(d + 1).borel();
     }
 
