@@ -8,44 +8,6 @@ namespace zeno
 namespace internal
 {
 
-
-/// @brief Computes n! (where n! = 0 for n < 0).
-template<typename Z = int64_t>
-Z fact(int n) {
-    if(n < 0) return Z(0);
-    static std::vector<Z> _factorial({Z(1)});
-    while(_factorial.size() <= n)
-        _factorial.push_back(Z(_factorial.back()) * Z(_factorial.size()));
-    return _factorial[n];
-}
-
-/// @brief Computes 1 / n! (where 1/n! = 0 for n < 0).
-template<typename Z = int64_t>
-Z inv_fact(int n) {
-    if(n < 0) return Z(0);
-    static std::vector<Z> _inv_factorial({Z(1)});
-    while(_inv_factorial.size() <= n)
-        _inv_factorial.push_back(Z(_inv_factorial.back()) / Z(_inv_factorial.size()));
-    return _inv_factorial[n];
-}
-
-/// @brief Compute the binomial coefficient C(n, m) (where C(n, m) = 0 for n or m < 0).
-template<typename Z = int64_t>
-Z binom(int n, int m) {
-    if(n < 0 || m < 0 || n - m < 0) return Z(0);
-    if(std::is_integral_v<Z>) {
-        static std::vector<std::vector<Z>> _binom(std::vector<Z>({}));
-        while(_binom.size() <= n)
-            _binom.push_back({});
-        while(_binom[n].size() <= m)
-            _binom[n].push_back(-1);
-        if(_binom[n][m] == -1)
-            return _binom[n][m] = binom(n, m-1) + binom(n-1, m-1);
-        return _binom[n][m];
-    }
-    return fact(n) * inv_fact(m) * inv_fact(n - m);
-}
-
 template<class Z = int64_t>
 Z binary_exponentiation_mod(Z base, Z e, Z mod) {
     Z result = 1;

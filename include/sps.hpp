@@ -3,7 +3,6 @@
 #include <vector>
 #include <iostream>
 #include <assert.h>
-#include <algorithm> // std::min
 
 #include "fps.hpp"
 #include "internal.hpp"
@@ -11,6 +10,9 @@
 
 namespace zeno {
 
+/// @brief Implementation of common Set Power Series operations.
+/// @ref https://www.algorithmas.org/articles/fast_subset_convolution.html
+/// @tparam R A commutative ring.
 template <class R>
 class SetPowerSeries {
 public:
@@ -120,7 +122,7 @@ public:
     }
 
     /// @brief Computes the Walsh–Hadamard transform (n-dimensional FFT in GF(2)) of f in O(n2^n).
-    /// @param inverse if true apply the inverse WHT instead.
+    /// @param inverse If true apply the inverse WHT instead.
     static void walsh_hadamard_transform(std::vector<R> &f, bool inverse = false) {
         size_t N = f.size();
         assert((N &(N-1)) == 0);
@@ -156,8 +158,5 @@ public:
     }
 
 };
-
-template <class R>
-using SPS = SetPowerSeries<R>;
 
 } // namespace zeno

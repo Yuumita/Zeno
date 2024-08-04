@@ -58,9 +58,9 @@ public:
     }
 
 
-    /// @brief Returns a set of GF2 vectors B of minimum cardinality such that span(B) = span(v).
-    ///        For other algorithms in GF2Vector to work, B should be such that if the first 1 in
-    ///        B[i] is in the j-th column then all the vectors B[i+1...] have 0s in columns [0, j].
+    /// @return A set of GF2 vectors B of minimum cardinality such that span(B) = span(v).
+    ///         For other algorithms in GF2Vector to work, B should be such that if the first 1 in
+    ///         B[i] is in the j-th column then all the vectors B[i+1...] have 0s in columns [0, j].
     static std::vector<GF2Vector> get_basis(std::vector<GF2Vector> V) {
         /// TODO: implement it with const in V ???
         std::vector<GF2Vector> B;

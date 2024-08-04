@@ -117,6 +117,7 @@ public:
 };
 
 
+/// @brief Sparse implementation of R[x_0, ..., x_{n-1}].
 template <class R, size_t n>
 class SparseMultivariatePolynomial {
     using SMPoly = SparseMultivariatePolynomial;

@@ -8,12 +8,14 @@ namespace zeno {
 
 
 /// @brief Euclid's gcd algorithm.
+/// @tparam Z An integral domain.
 /// @return gcd(a, b)
 template<typename Z = int64_t>
 Z gcd(Z a, Z b) { 
     return (b == Z(0) ? a : gcd(b, a % b));
 }
 
+/// @tparam Z An integral domain.
 /// @return lcm(a, b)
 template<typename Z = int64_t>
 Z lcm(Z a, Z b) {
@@ -21,6 +23,7 @@ Z lcm(Z a, Z b) {
 }
 
 /// @brief Fast implementation of Euclid's gcd algorithm.
+/// @tparam Z An integral domain.
 /// @return gcd(a, b)
 template<typename Z = int64_t>
 Z binary_gcd(Z a, Z b) { /* fast implementation of Euclid's algorithm */
@@ -71,6 +74,7 @@ Z _lcm(Z a, Z b) {
 }
 
 /// @brief Extended Euclid's algorithm. x, y are set to those s.t. ax + by = gcd(a, b)
+/// @tparam Z An integral domain.
 /// @return gcd(a, b)
 template <typename Z = int64_t>
 Z extended_gcd(Z a, Z b, Z &x, Z &y) {
@@ -96,6 +100,7 @@ Z extended_gcd(Z a, Z b, Z &x, Z &y) {
 
 /// @brief Compute a solution to the linear diophantine equation ax + by = c. If a solution
 ///        exists then the variables x, y are set to one solution and g to gcd(a, b).
+/// @tparam Z An integral domain.
 /// @return true iff ax + by = c has at least one solution.
 template<typename Z = int64_t>
 bool solve_linear_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
@@ -144,6 +149,7 @@ bool solve_linear_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
 /// @brief Apply the inductive CRT to solve for the number X such that X = x[i] (mod m[i]). 
 ///        The moduli m[i] should be pairwise coprime.
 /// @ref https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Existence_(constructive_proof)
+/// @tparam Z An integral domain.
 /// @return An integer X such that X = x[i] (mod m[i])
 template<typename Z = int64_t>
 Z chinese_remainder_theorem(std::vector<Z> const &m, std::vector<Z> const x) {

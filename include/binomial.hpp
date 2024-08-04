@@ -7,8 +7,7 @@
 namespace zeno {
 
 /// TODO: perhaps support negative binomial coefficients etc.
-/// @brief 
-/// @tparam Tp 
+/// @brief The Binomial class used for computing factorials and binomial coefficients.
 template <typename Tp>
 class Binomial {
 private:

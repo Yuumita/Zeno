@@ -12,6 +12,9 @@ namespace zeno {
 
 
 /// TODO: change 'int' to 'uint32_t'
+
+
+/// @brief Implementation of arbitrary (up to 10^{10^{64}}) precision integers.
 class MultiPrecisionInteger {
     using MPI = MultiPrecisionInteger;
 

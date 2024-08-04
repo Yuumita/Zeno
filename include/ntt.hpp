@@ -98,7 +98,6 @@ public:
 
 
     void transform(std::vector<M> &a, bool inverse = false) {
-
         size_t n = a.size(), s = 0;
         if(n <= 1) return;
         while((1 << s) < n) s++;

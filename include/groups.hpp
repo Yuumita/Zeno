@@ -27,7 +27,7 @@ Z get_order(G g) {
 }
 
 
-// Given an odd prime p, return a primitive root modulo p
+/// @brief Given an odd prime p, return a primitive root modulo p.
 template<class Z = int64_t>
 Z primitive_root(Z p) {
     std::vector<Z> fp, fv;

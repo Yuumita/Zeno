@@ -8,7 +8,7 @@
 namespace zeno {
 
 /// TODO: check edge cases (e.g. S(0, 0) = 1, s(0, 0) = 1)
-/// @brief
+/// @brief The Stirling class used for computing the stirling numbers.
 template <typename Tp>
 class Stirling {
 

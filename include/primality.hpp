@@ -115,8 +115,8 @@ Z find_prime_factor(Z n) {
     if(n < 0) n = -n; // maybe that's unexpected???
     if(n <= 3) return n;
     if(n % 2 == 0) return 2;
-    if(has_precomputed_esieve && n <= MAX_ESIEVE_NUM) 
-        return spf[n];
+    if(has_precomputed_esieve && n <= Z(MAX_ESIEVE_NUM)) 
+        return Z(spf[n]);
 
     Z d = pollard_rho<Z>(n, 2, 1);
     if(miller_rabin<Z>(d)) 
@@ -154,6 +154,7 @@ std::vector<Z> factorize(Z n) {
     return ret;
 }
 
+/// @brief Set p and v so that n = Prod_{i} p[i]^v[i]
 template<class Z = int64_t>
 void standard_factorize(Z n, std::vector<Z> &p, std::vector<Z> &v) {
     std::vector<Z> f = factorize(n);
