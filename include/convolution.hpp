@@ -222,12 +222,12 @@ namespace fft {
             // chi[i] %= N
         }
 
-        // TODO: ...
+        /// TODO: ...
 
     }
 
 
-    const size_t magic_number = 0; // 64;
+
 
 } // namespace fft
 
@@ -242,6 +242,7 @@ template <typename T>
             ret[i + j] += static_cast<T>(a[i]) * static_cast<T>(b[j]);
     return ret;
 }
+
 
 template <typename T>
 std::vector<T> convolution(std::vector<T> const &a, std::vector<T> const &b) {

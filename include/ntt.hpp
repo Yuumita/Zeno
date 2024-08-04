@@ -8,7 +8,6 @@
 #include "internal.hpp"
 #include "internal_fft.hpp"
 #include "modular.hpp"
-#include "convolution.hpp"
 #include "groups.hpp"
 #include <algorithm> // std::swap
 

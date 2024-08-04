@@ -11,7 +11,7 @@ namespace zeno
 /// @tparam Z Integer ring holding numbers at least as large as MOD.
 /// @tparam longZ Integer ring holding numbers at least as large as the square of a number in Z.
 /// @tparam MOD The modulo m of the Z/mZ ring.
-template <typename Z, Z MOD, typename longZ = int64_t>
+template <typename Z, Z MOD, typename longZ = Z>
 class static_modular {
     static_assert(1 <= MOD, "Template parameter MOD must be greater than or equal to 1.");
     using modular = static_modular<Z, MOD, longZ>;

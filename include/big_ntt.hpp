@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "modular.hpp"
+#include "internal_fft.hpp"
 #include "ntt.hpp"
 
 namespace zeno
@@ -10,18 +11,19 @@ namespace zeno
 /// @ref NyaanNyaan, https://cp-algorithms.com/algebra/garners-algorithm.html
 class BigNTT {
     using int128_t = __int128_t;
-private:
+
+public:
+
     /// @brief Garner's algorithm
-    static const int m0 = 167772161;
-    static const int m1 = 469762049;
-    static const int m2 = 754974721;
+    static constexpr int m0 = 167772161;
+    static constexpr int m1 = 469762049;
+    static constexpr int m2 = 754974721;
     using mint0 = modint<m0>;
     using mint1 = modint<m1>;
     using mint2 = modint<m2>;
     static int r01; // = mint1(m0).inv().val();
     static int r02; // = mint2(m0).inv().val();
     static int r12; // = mint2(m1).inv().val();
-public:
 
     template <typename T, class M>
     static std::vector<M> _convolution_mint(std::vector<T> const &a, std::vector<T> const &b) {
@@ -34,8 +36,14 @@ public:
     template <typename T>
     static std::vector<int128_t> convolution_int128(std::vector<T> const &a, std::vector<T> const &b) {
         if(a.empty() || b.empty()) return {};
-        if (std::min(a.size(), b.size()) <= fft::magic_number) 
-            return convolution_naive<int128>(a, b);
+        if (std::min(a.size(), b.size()) <= fft::magic_number) {
+            size_t n = a.size(), m = b.size();
+            std::vector<int128_t> ret(n + m - 1);
+            for (int i = 0; i < n; ++i)
+                for (int j = 0; j < m; ++j) 
+                    ret[i + j] += static_cast<int128_t>(a[i]) * static_cast<int128_t>(b[j]);
+            return ret;
+        }
         
         std::vector<mint0> x0 = _convolution_mint<T, mint0>(a, b);
         std::vector<mint1> x1 = _convolution_mint<T, mint1>(a, b);
@@ -43,7 +51,7 @@ public:
         // xi[j] = (a * b)[j] (mod mi)
         // retrieve x = (a * b)[j] (mod m0 * m1 * m2) through chinese remainder theorem (garner's algorithm)
 
-        std::vector<int128> ret(x0.size());
+        std::vector<int128_t> ret(x0.size());
         for(int i = 0; i < x0.size(); i++) {
             /// int is probably enough for a0, a1, a2
             int64_t a0 = x0[i].val();

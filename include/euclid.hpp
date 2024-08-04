@@ -146,7 +146,7 @@ bool solve_linear_diophantine(Z a, Z b, Z c, Z &x, Z &y, Z &g) {
 /// @ref https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Existence_(constructive_proof)
 /// @return An integer X such that X = x[i] (mod m[i])
 template<typename Z = int64_t>
-Z inductive_chinese_remainder_theorem(std::vector<Z> const &m, std::vector<Z> const x) {
+Z chinese_remainder_theorem(std::vector<Z> const &m, std::vector<Z> const x) {
     assert(m.size() == x.size());
 
     Z M = m[0], X = x[0];

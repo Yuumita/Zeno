@@ -6,6 +6,8 @@ namespace zeno {
 
 namespace fft {
 
+    const size_t magic_number = 0; // 64;
+
     size_t compute_convolution_size(size_t n, size_t m) {
         return (size_t(1) << internal::ceil_log2(n + m - 1));
     }

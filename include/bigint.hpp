@@ -40,12 +40,14 @@ public:
     }
 
     template<typename Iterator>
-    MultiPrecisionInteger(Iterator begin, Iterator end) : neg(false) {
+    MultiPrecisionInteger(Iterator begin, Iterator end) : neg(false), digits({}) {
         using T = typename std::iterator_traits<Iterator>::value_type;
         static_assert(std::is_same<T, char>::value, "Iterator value type must be of type char");
+
+        if(begin == end) return;
         if(*begin == '+' || *begin == '-') neg = (*begin == '-'), ++begin;
         while(end - begin > 0) {
-            int seg_len = std::min(end - begin, logB);
+            size_t seg_len = std::min<size_t>(end - begin, logB);
             Iterator seg_begin = std::prev(end, seg_len);
 
             int x = 0;
@@ -58,18 +60,9 @@ public:
         _shrink();
     }
 
-    template<typename Iterator>
-    MultiPrecisionInteger(Iterator begin) : neg(false) {
-        using T = typename std::iterator_traits<Iterator>::value_type;
-        static_assert(std::is_same<T, char>::value, "Iterator value type must be of type char");
-        Iterator it = begin;
-        while(it && *it != '\0') ++it;
-        MultiPrecisionInteger(begin, end);
-    }
 
-    MultiPrecisionInteger(const std::string &s) : neg(false) {
-        MultiPrecisionInteger(s.begin(), s.end());
-    }
+    MultiPrecisionInteger(const std::string &s)
+        : MultiPrecisionInteger(s.begin(), s.end()) {}
 
 
     friend MPI operator+(const MPI& lhs, const MPI& rhs) {
@@ -234,6 +227,7 @@ private:
             carry /= B;
         }
         _shrink(c);
+        return c;
     }
 
     /// @return The multiplication, a * b, result of the (unsigned) MPIs a, b.
@@ -410,6 +404,9 @@ public:
     bool is_zero() const { return digits.empty(); }
     static bool is_zero(std::vector<int> const &a) { return a.empty(); }
 
+    std::vector<int> &get_digits() { return digits; }
+    bool get_neg() { return neg; }
+
     static std::string to_string(int value, bool padding = false) {
         std::string ret = std::to_string(value);
         if(padding) {
@@ -440,7 +437,7 @@ public:
     }
 };
 
-using MPI    = MultiPrecisionInteger;
+// using MPI    = MultiPrecisionInteger;
 using BigInt = MultiPrecisionInteger;
 using bigint = MultiPrecisionInteger;
     
