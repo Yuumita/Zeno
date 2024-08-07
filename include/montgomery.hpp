@@ -6,6 +6,7 @@
 namespace zeno {
     
 
+/// TODO: check correctness.
 /// @brief Implementation of Montgomery space. A number X converted to montgometry(X): (x*r) mod n.
 template <typename Z, typename uZ, typename longZ, typename ulongZ, uZ mod>
 class Montgomery {

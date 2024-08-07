@@ -89,15 +89,6 @@ Z extended_gcd(Z a, Z b, Z &x, Z &y) {
     return g;
 }
 
-// fast implementation of extended_gcd
-//template<typename Z = int64_t>
-//Z extended_binary_gcd(Z a, Z b, Z &x, Z &y) {
-//    // TODO: complete
-//}
-
-
-
-
 /// @brief Compute a solution to the linear diophantine equation ax + by = c. If a solution
 ///        exists then the variables x, y are set to one solution and g to gcd(a, b).
 /// @tparam Z An integral domain.
