@@ -5,6 +5,9 @@
 #include "internal_fft.hpp"
 #include "ntt.hpp"
 
+
+#include "convolution.hpp"
+
 namespace zeno
 {
     
@@ -55,12 +58,13 @@ public:
         for(int i = 0; i < x0.size(); i++) {
             /// int is probably enough for a0, a1, a2
             int64_t a0 = x0[i].val();
-            int64_t a1 = (int64_t)(x1[i] + m1 - a0) * r01 % m1;
-            int64_t a2 = ((int64_t)(x2[i] + m2 - a0) * r02 * r12 % m2 + (int64_t)(m2 - a1) * r12) % m2;
+            int64_t a1 = (int64_t)((int64_t)(x1[i].val()) + m1 - a0) * r01 % m1;
+            int64_t a2 = ((int64_t)((int64_t)(x2[i].val()) + m2 - a0) * ((int64_t)(r02) * r12 % m2) + (int64_t)(m2 - a1) * r12) % m2;
 
             /// TODO: check that the following doesn't contain danger of overflow
-            ret[i] = a0 + (int64_t)(a1) * m0 + (int128_t)(a2) * m0 * m1; 
+            ret[i] = a0 + a1 * (int64_t)(m0) + (int128_t)(a2) * (int64_t)(m0) * (int64_t)(m1); 
         }
+
 
         return ret;
     }

@@ -218,7 +218,7 @@ private:
         return ret;
     }
 
-    static const int magic_number = 60;
+    static const int magic_number = 63;
     static const long long BB = (long long)(B) * B;
 
     static std::vector<int> _mul(std::vector<int> const &a, int const &b0) {
@@ -239,12 +239,11 @@ private:
         if(b.size() == 1) return _mul(a, b[0]);
 
         std::vector<int> ret(a.size() + b.size() + 3, 0);
-        if(a.size() <= magic_number || b.size() <= 64) { // naive convolution
+        if(a.size() <= magic_number || b.size() <= magic_number) { // naive convolution
             std::vector<long long> c(a.size() + b.size());
             for(int i = 0; i < a.size(); i++) {
                 for(int j = 0; j < b.size(); j++) {
                     c[i + j] += (long long)(a[i]) * (long long)b[j]; 
-                    // a[i] * b[i] < 10^18 => c[i + j] < 10^18 + 10^
                     if(c[i + j] >= BB) {
                         c[i + j] -= BB;
                         c[i + j + 1]  += (long long)(B);
@@ -264,21 +263,23 @@ private:
             }
 
         //} else if(a.size() <= 256 && b.size() <= 256) { // karatsuba
-
         } else if((a.size() < 1ll << 62) && b.size() < (1ll << 62)) { // ntt convolution 
             /// TODO: check sizes for overflows
             std::vector<__int128_t> c = BigNTT::convolution_int128(a, b);
+
             __int128_t carry = 0;
             int i;
             for(i = 0; i < c.size(); i++) {
-                ret.push_back(carry % B);
+                carry += c[i];
+                ret[i] = carry % B;
                 carry /= B;
             }
             while(carry) {
                 ret[i++] = carry % B;
                 carry /= B;
             }
-        } else { // naive again ???
+
+        } else { // overflow - naive again ???
             ret = {};
         }
 
