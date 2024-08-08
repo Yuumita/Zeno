@@ -71,28 +71,28 @@ std::vector<GF2Vec<d>> intersect(std::vector<GF2Vec<d>> const &U, std::vector<GF
 /// @return A basis for the nullspace, ker(A), of A.
 template<size_t d>
 std::vector<GF2Vec<d>> get_nullspace(std::vector<GF2Vec<d>> const &A) {
-    std::vector<GF2Vec<d>> B;
-    for(int i = 0; i < A.size(); i++) {
-        if(A[i].any())
-            B.push_back(A[i]);
-    }
+    std::vector<GF2Vec<d>> B = get_basis(A);
 
-    std::vector<bool> F(d, true);
-    std::vector<int>  p(d, 0);
+    std::vector<size_t>  p(B.size(), 0); // p[i] is the pivot column number of B[i]
+    std::vector<bool> F(d, true);        // indicating 'free' columns
 
     for(int i = 0; i < B.size(); i++) {
-        for(int j = 0; j < d; j++) if(B[i][j]) {
+        for(size_t j = 0; j < d; j++) if(B[i][j]) {
             F[j] = false, p[i] = j;
+            // We comment the following because we assume get_basis(A) returns a basis 
+            // such that if it is arranged as rows in B, B is in echolon form. 
+                /// for(int k = i + 1; k < B.size(); k++) if(B[k][j])
+                ///     B[k] ^= B[i];
+            break;
         }
     }
 
     std::vector<GF2Vec<d>> ret;
-    for(int f = 0; f < d; f++) if(F[f]) {
+    for(size_t f = 0; f < d; f++) if(F[f]) {
         GF2Vec<d> n;
         n[f] = 1;
-        for(int i = 0; i < B.size(); i++) {
-            n[p[i]] = A[i][f];
-        }
+        for(int i = 0; i < B.size(); i++)
+            n[p[i]] = B[i][f];
         ret.push_back(n);
     }
 
