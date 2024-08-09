@@ -2,6 +2,17 @@
 
 #include <cstdint>
 
+#define print_vector(x) _print_vector(#x, (x))
+
+
+template<typename T>
+void _print_vector(std::string name, std::vector<T> const &v) {
+    std::cerr << name << ": ";
+    for(auto &e: v) std::cerr << e << " ";
+    std::cerr << std::endl;
+}
+
+
 namespace zeno
 {
 

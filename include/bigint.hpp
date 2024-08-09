@@ -31,6 +31,10 @@ public:
 
     MultiPrecisionInteger(): neg(false), digits({}) {};
 
+    MultiPrecisionInteger(std::vector<int> const &digits_)
+        : neg(false), digits(digits_) {};
+    MultiPrecisionInteger(std::vector<int> const &digits_, bool neg_)
+        : neg(neg_), digits(digits_) {};
     MultiPrecisionInteger(bool neg_, std::vector<int> const &digits_)
         : neg(neg_), digits(digits_) {};
 
@@ -91,21 +95,23 @@ public:
         return MPI(nneg, std::move(c));
     }
 
-    friend std::pair<MPI, MPI> divmod(const MPI& lhs, const MPI& rhs) {
-        std::pair<std::vector<int>, std::vector<int>> qr = MPI::_div_newton_raphson(lhs.digits, rhs.digits);
+    friend std::pair<MPI, MPI> divmod(MPI const &lhs, MPI const &rhs) {
+        // std::pair<std::vector<int>, std::vector<int>> qr = MPI::_div_newton_raphson(lhs.digits, rhs.digits);
+        std::pair<std::vector<int>, std::vector<int>> qr = MPI::_div_long(lhs.digits, rhs.digits);
         bool qn = qr.first.empty() ? false : lhs.neg != rhs.neg;
         bool rn = qr.second.empty() ? false : lhs.neg;
-        MPI q = MPI(qn, std::move(qr.first));
-        MPI r = MPI(rn, std::move(qr.second));
+        MPI q = MPI(qn, qr.first);
+        MPI r = MPI(rn, qr.second);
+
 assert(lhs == q * rhs + r);
         return {q, r};
     }
 
-    friend MPI operator/(const MPI& lhs, const MPI& rhs) {
+    friend MPI operator/(MPI const &lhs, MPI const &rhs) {
         return divmod(lhs, rhs).first;
     }
 
-    friend MPI operator%(const MPI& lhs, const MPI& rhs) {
+    friend MPI operator%(MPI const &lhs, MPI const &rhs) {
         return divmod(lhs, rhs).second;
     }
 
@@ -203,6 +209,7 @@ private:
     /// @brief Subtract the two unsigned MPI vectors (a - b) and store the result to a
     /// @pre a >= b
     static void _sub_op(std::vector<int> &a, std::vector<int> const &b) {
+assert(_cmp(a, b) >= 0);
         int carry = 0;
         for(int i = 0; i < b.size() || carry; i++) {
             a[i] -= carry + (i < b.size() ? b[i] : 0);
@@ -212,20 +219,21 @@ private:
         _shrink(a);
     }
 
-    static std::vector<int> _sub(std::vector<int> const &a, std::vector<int> const &b) {
-        std::vector<int> ret = a;
-        _sub_op(ret, b);
-        return ret;
+    /// @pre a >= b
+    static std::vector<int> _sub(std::vector<int> a, std::vector<int> const &b) {
+assert(_cmp(a, b) >= 0);
+        _sub_op(a, b);
+        return a;
     }
 
     static const int magic_number = 63;
     static const long long BB = (long long)(B) * B;
 
     static std::vector<int> _mul(std::vector<int> const &a, int const &b0) {
-        std::vector<int> c(a.size() + 1);
+        std::vector<int> c(a.size() + 1, 0);
         long long carry = 0;
         for(int i = 0; i < a.size() || carry; ++i) {
-            carry += (long long)(a[i]) * b0;
+            if(i < a.size()) carry += (long long)(a[i]) * b0;
             c[i]   = (int)(carry % B);
             carry /= B;
         }
@@ -316,42 +324,49 @@ private:
 
     /// @brief Long division with optimizations.
     /// @ref Knuth's ACP vol. 2, Seminumerical Algorithms
-    /// @return {Q, R} where Q, R are the (unsigned) MPI quotient, remainder of a/b.
+    /// @return {Q, R} where Q, R are the (unsigned) MPI quotient and remainder of a/b.
     static std::pair<std::vector<int>, std::vector<int>> 
     _div_long(std::vector<int> const &a, std::vector<int> const &b) {
-        if(MPI::is_zero(b)) {
+        if(is_zero(b)) {
             std::cerr << "Division by zero" << std::endl;
             exit(1);
         }
         if(b.size() == 1) return _div(a, b[0]);
         if(_cmp(a, b) < 0) return {{}, a};
 
-        int K = (B - 1) / b.back(); // normalization [a//b = (Ka)//(Kb) = u//v]
+        /// TODO: check which of the following is correct
+        /// int K = (B - 1) / b.back(); // normalization [a//b = (Ka)//(Kb) = u//v]
+        int K = B / (b.back() + 1); // normalization [a//b = (Ka)//(Kb) = u//v]
+
         std::vector<int> u = _mul(a, K);
         std::vector<int> v = _mul(b, K);
         // now v.back() >= B/2 so that 2 * v.back() >= B
 
         std::vector<int> q(u.size() - v.size() + 1, 0);
-        std::vector<int> r(u.end() - v.size(), u.end());
+        std::vector<int> r(std::prev(u.end(), v.size()), u.end());
+
         for(int i = q.size() - 1; i >= 0; --i) {
             if(r.size() > v.size()) {
+assert(v.size() + 1 == r.size());
                 int qq = ((long long)(r[r.size() - 1]) * B + r[r.size() - 2]) / v.back();
                 // qq - 2 <= Q <= qq where Q = r // v (from normalization)
                 std::vector<int> vqq = _mul(v, qq);
 
-                while(_cmp(r, vqq) < 0) qq--, vqq = _sub(vqq, v);
-                r = _sub(r, vqq);
-                while(_cmp(v, r) <= 0) qq++, r = _sub(r, v);
+                while(_cmp(r, vqq) < 0) qq--, _sub_op(vqq, v);
+                _sub_op(r, vqq);
+                while(_cmp(v, r) <= 0) qq++, _sub_op(r, v);
                 q[i] = qq;
             } else if(r.size() == v.size()) { // from normalization qq is then at most 1
-                if(_cmp(v, r) < 0) { 
-                    q[i] = 1, r = _sub(r, v);
+                if(_cmp(v, r) <= 0) { 
+                    q[i] = 1, _sub_op(r, v);
                 }
             }
             if(i > 0) r.insert(r.begin(), u[i - 1]);
         }
+
         _shrink(q), _shrink(r);
         auto [qT, rT] = _div(r, K); // denormalization
+        assert(is_zero(rT));
         return {q, qT};
     }
 
@@ -425,8 +440,9 @@ public:
         if(is_zero()) return "0";
         std::string ret;
         if(neg) ret.push_back('-');
-        for(int i = digits.size() - 1; i >= 0; --i)
+        for(int i = digits.size() - 1; i >= 0; --i) { 
             ret += MPI::to_string(digits[i], i != digits.size() - 1);
+        }
         return ret;
     }
 
