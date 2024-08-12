@@ -95,8 +95,8 @@ public:
         return MPI(nneg, std::move(c));
     }
 
+    /// TODO: Implement newton-raphson method
     friend std::pair<MPI, MPI> divmod(MPI const &lhs, MPI const &rhs) {
-        // std::pair<std::vector<int>, std::vector<int>> qr = MPI::_div_newton_raphson(lhs.digits, rhs.digits);
         std::pair<std::vector<int>, std::vector<int>> qr = MPI::_div_long(lhs.digits, rhs.digits);
         bool qn = qr.first.empty() ? false : lhs.neg != rhs.neg;
         bool rn = qr.second.empty() ? false : lhs.neg;
@@ -167,7 +167,13 @@ private:
     }
     static void _shift(std::vector<int> &a, int k) {
         if(k > 0) a.insert(a.begin(), k, 0);
-        if(k < 0) a.erase(a.begin(), a.begin() - k);
+        else if(k < 0) { 
+            if(a.size() > static_cast<size_t>(-k)) {
+                a.erase(a.begin(), std::next(a.begin(), -k));
+            } else {
+                a.clear();
+            }
+        }
     }
 
 
@@ -248,7 +254,7 @@ assert(_cmp(a, b) >= 0);
 
         std::vector<int> ret(a.size() + b.size() + 3, 0);
         if(a.size() <= magic_number || b.size() <= magic_number) { // naive convolution
-            std::vector<long long> c(a.size() + b.size());
+            std::vector<long long> c(a.size() + b.size() + 1, 0);
             for(int i = 0; i < a.size(); i++) {
                 for(int j = 0; j < b.size(); j++) {
                     c[i + j] += (long long)(a[i]) * (long long)b[j]; 
@@ -370,6 +376,7 @@ assert(v.size() + 1 == r.size());
         return {q, qT};
     }
 
+    /// TODO: find a better convergence condition
     /// @brief Calculate B^k / a using Newton's method, f[n+1] = f[n] * (2B^k - f[n] * a) / B^k
     /// @return An approximation of B^k / a
     static std::vector<int> _reciprocal(std::vector<int> const &a, int k) {
@@ -377,7 +384,7 @@ assert(v.size() + 1 == r.size());
         std::vector<int> f = _mul(a, {2});
         std::vector<int> p(k+1, 0); p.back() = 2;
 
-        for(size_t i = 1; i <= std::max((size_t)a.size(), (size_t)8); i *= 2) {
+        for(size_t i = 1; i <= 1024; i++) {
             f = _mul(f, _sub(p, _mul(f, a)));
             _shift(f, -k);
         }
@@ -395,19 +402,22 @@ assert(v.size() + 1 == r.size());
             std::cerr << "Division by zero" << std::endl;
             exit(1);
         }
-        if(b.size() <= magic_number) return _div_long(a, b);
+        // if(b.size() <= magic_number) return _div_long(a, b);
         if(_cmp(a, b) < 0) return {{}, a};
 
-        int K = (B - 1) / b.back(); // normalization [a//b = (Ka)//(Kb) = u//v]
+        int K = B / (b.back() + 1); // normalization [a//b = (Ka)//(Kb) = u//v]
+        // int K = (B - 1) / b.back(); // normalization [a//b = (Ka)//(Kb) = u//v]
+
         std::vector<int> u = _mul(a, K);
         std::vector<int> v = _mul(b, K);
         int s = u.size() + v.size() + 2; // uv <= B^s
 
+
         std::vector<int> w = _reciprocal(v, s); // B^s // v
+
         std::vector<int> q = _mul(u, w);
         _shift(q, -s);
         std::vector<int> vq = _mul(v, q);
-
         while(_cmp(u, vq) < 0) _sub_op(q, {1}), _sub_op(vq, v);
         std::vector<int> r = _sub(u, vq);
         while(_cmp(v, r) <= 0) _add_op(q, {1}), _sub_op(r, v);

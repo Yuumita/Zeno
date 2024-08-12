@@ -19,6 +19,7 @@ namespace fft
     
 
 
+/// TODO: Delete assertions in constructor ???
 /// @brief The NTT class.
 /// @tparam M Modular ring class.
 /// @tparam Z Integer ring holding numbers at least as large as the cardinality of M.
@@ -52,9 +53,9 @@ class NumberTheoreticTransform {
         assert((p - 1) / (Z(1) << ordlog) * (Z(1) << ordlog) + 1 == p);
 
         for(int j = 1; j <= ordlog; j++) {
-            assert(w[j].pow((1ll << j)) == 1);
+            assert(w[j].pow((1ll << j)) == M(1));
             for(int i = 1; i < j; i++) {
-                assert(w[j].pow((1ll << i)) != 1);
+                assert(w[j].pow((1ll << i)) != M(1));
             }
         }
 
