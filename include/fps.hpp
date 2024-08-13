@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cassert>
 #include <algorithm> // std::min
+#include <deque>
 
 #include "convolution.hpp"
 #include "internal.hpp"
@@ -385,7 +386,7 @@ public:
     /// @return exp(*this).
     FPS exp(int m = -1) const {
         if(m == -1) m = deg() + 1;
-        assert(get(0) == 0);
+        assert(get(0) == R(0));
         FPS Q(1), P(*this);
         P[0] = 1;
         for(int i = 1; i < m; i *= 2) { // at the end of each step: F = e^P (mod x^{2^{i+1}})
@@ -456,6 +457,7 @@ public:
         }
 
     /// @brief Evaluate the FPS in points x0, x1, ..., x_{n-1} in O(nlog^2 n).
+    ///        Each xi should be unique and non-zero.
     std::vector<R> eval(std::vector<R> const &x) {
         int n = x.size();
         if(is_zero()) return std::vector<R>(n, R(0));

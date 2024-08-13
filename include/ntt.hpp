@@ -19,8 +19,7 @@ namespace fft
     
 
 
-/// TODO: Delete assertions in constructor ???
-/// @brief The NTT class.
+/// @brief The NTT class. Asserts that for the given prime number there are primitive roots of unity.
 /// @tparam M Modular ring class.
 /// @tparam Z Integer ring holding numbers at least as large as the cardinality of M.
 template <class M, typename Z = int64_t, std::enable_if_t<zeno::is_modular_v<M>>* = nullptr>
@@ -63,9 +62,8 @@ class NumberTheoreticTransform {
 
     }
 
-    NumberTheoreticTransform() {
-        NumberTheoreticTransform(M::mod());
-    }
+    NumberTheoreticTransform() : NumberTheoreticTransform(M::mod()) {}
+    
 
 public:
 
@@ -143,15 +141,19 @@ public:
 };
 
 
+/// @brief Applies the (non-cyclic) convolution of a and b. Assertion rises if 
+///        the modular class M does not have enough roots of unity for the result.
+/// @tparam M The modular class.
+/// @return The convolution of a and b.
 template <class M, std::enable_if_t<zeno::is_modular_v<M>>* = nullptr>
-std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b, M p = M(0)) {
+std::vector<M> convolution_ntt(std::vector<M> const &a, std::vector<M> const &b) {
 
     if(a.empty() || b.empty()) return {};
 
     size_t n = size_t(a.size()), m = size_t(b.size());
     size_t N = zeno::fft::compute_convolution_size(n, m);
 
-    NumberTheoreticTransform<M> ntt = NumberTheoreticTransform<M>::get_info(p.mod());
+    NumberTheoreticTransform<M> ntt = NumberTheoreticTransform<M>::get_info(a[0].mod());
     assert(N <= (size_t(1) << ntt.roots().size()));
 
     std::vector<M> fa(a.begin(), a.end()), fb(b.begin(), b.end());

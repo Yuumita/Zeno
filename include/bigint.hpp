@@ -38,9 +38,12 @@ public:
     MultiPrecisionInteger(bool neg_, std::vector<int> const &digits_)
         : neg(neg_), digits(digits_) {};
 
-    template <typename Z>
+    MultiPrecisionInteger(std::string const &s)
+        : MultiPrecisionInteger(s.begin(), s.end()) {}
+
+
+    template <typename Z, std::enable_if_t<std::is_integral<Z>::value>* = nullptr>
     MultiPrecisionInteger(Z x) : neg(false) {
-        static_assert(std::is_integral_v<Z>, "Template parameter Z is not integral.");
         if (std::is_signed_v<Z>)
             if (x < Z(0)) neg = true, x = -x;
         while (x > Z(0))  digits.push_back(x % B), x /= B;
@@ -68,8 +71,6 @@ public:
     }
 
 
-    MultiPrecisionInteger(const std::string &s)
-        : MultiPrecisionInteger(s.begin(), s.end()) {}
 
 
     friend MPI operator+(const MPI& lhs, const MPI& rhs) {

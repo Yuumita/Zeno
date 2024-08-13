@@ -15,8 +15,9 @@ namespace zeno {
 /// @tparam longZ Integer ring holding numbers at least as large as the squares of numbers in Z.
 /// @tparam longZ Integer ring holding numbers at least as large as the squares of numbers in Z.
 /// @tparam ulongZ The unsigned integer domain of longZ.
-/// @tparam MOD The modulus of the class. The modulus of each Montgomery object can be changed in runtime.
-template <typename Z, typename uZ, typename longZ, typename ulongZ, uZ MOD = 2>
+/// @tparam MOD The modulus of the class —needs to be coprime with r = 2^logsize = 2^{number of bits in uZ}.
+///         The modulus of each Montgomery object can be changed in runtime.
+template <typename Z, typename uZ, typename longZ, typename ulongZ, uZ MOD = 0>
 class Montgomery {
     using M = Montgomery;
 protected:
@@ -47,6 +48,7 @@ public:
     void set_mod(uZ m) {
         _mod = m;
         modinv = _mod;
+        assert(m % 2 == 1);
         while(modinv * _mod != 1) modinv *= uZ(2) - _mod * modinv;
     }
 
@@ -138,10 +140,10 @@ public:
 template <typename Z, typename uZ, typename longZ, typename ulongZ, uZ mod>
 struct is_modular<zeno::Montgomery<Z, uZ, longZ, ulongZ, mod>> : std::true_type {};
 
-template<uint32_t mod = 2>
+template<uint32_t mod = 0>
 using Montgomery32 = Montgomery<int32_t, uint32_t, int64_t, uint64_t, mod>;
 
-template<uint64_t mod = 2>
+template<uint64_t mod = 0>
 using Montgomery64 = Montgomery<int64_t, uint64_t, __int128_t, __uint128_t, mod>;
 
 
