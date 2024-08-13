@@ -16,13 +16,14 @@ class DenseMultivariateFormalPowerSeries {
     using mfps = DenseMultivariateFormalPowerSeries<R, N>;
     using fps = FormalPowerSeries<R>;
 private:
-
     fps F;
     std::array<int, N> n;
 
     /// [x^i]F = [x^{(i_0, i_1, ..., i_{N-1})}]F where  
     /// (i_0, ..., i_{N-1}) is the mixed radix of i w/r to (n[0], ..., n[N-1])
     /// @ref https://core.ac.uk/download/pdf/82485770.pdf, https://rushcheyo.blog.uoj.ac/blog/6547
+
+
 
     static size_t get_index(std::array<int, N> const &I, std::array<int, N> const &base) {
         size_t i = 0;
@@ -83,7 +84,6 @@ private:
             H = H.convert_to_radix(m);
         }
     }
-
 
 public:
     DenseMultivariateFormalPowerSeries();

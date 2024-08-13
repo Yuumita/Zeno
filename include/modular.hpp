@@ -7,7 +7,7 @@ namespace zeno
 {
 
 
-/// @brief Static (modulo given at compile time) implementation of the Z/mZ ring.
+/// @brief Static (i.e. modulus given at compile time) implementation of the Z/mZ ring.
 /// @tparam Z Integer ring holding numbers at least as large as MOD.
 /// @tparam longZ Integer ring holding numbers at least as large as the square of a number in Z.
 /// @tparam MOD The modulo m of the Z/mZ ring.

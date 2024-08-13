@@ -3,60 +3,73 @@
 #include <cstdint>
 #include <stdlib.h>
 
-#include "modular.hpp" // is_modular class
+#include "modular.hpp" // importing is_modular class
 
 namespace zeno {
     
 
-/// TODO: check correctness.
-/// @brief Implementation of Montgomery space. A number X converted to montgometry(X): (x*r) mod n.
-template <typename Z, typename uZ, typename longZ, typename ulongZ, uZ MOD>
+
+/// @brief Implementation of Montgomery space. Numbers X are mapped to (x*r) mod m where r = 2^logsize.
+/// @tparam Z Integer ring.
+/// @tparam uZ The unsigned integer domain of Z.
+/// @tparam longZ Integer ring holding numbers at least as large as the squares of numbers in Z.
+/// @tparam longZ Integer ring holding numbers at least as large as the squares of numbers in Z.
+/// @tparam ulongZ The unsigned integer domain of longZ.
+/// @tparam MOD The modulus of the class. The modulus of each Montgomery object can be changed in runtime.
+template <typename Z, typename uZ, typename longZ, typename ulongZ, uZ MOD = 2>
 class Montgomery {
     using M = Montgomery;
+protected:
+    static constexpr Z logsize = sizeof(uZ) * 8;
+//  uZ r = 2^{logsize}
+    uZ _mod;   // The, perhaps changed, modulus of the current Montgomery object.
+    uZ modinv; // m^{-1} mod r.
+    uZ val;    // the value of X in the (X * r) mod m representation.
 
-private:
-    Z logsize;
-    uZ modinv; // modinv = mod^{-1} mod r
-    uZ val;
-
+    /// @return (x * r^{-1}) mod m.
     uZ reduce(ulongZ const &x) const {
         uZ q = uZ(x) * modinv;               // q = xn' mod r
-        uZ m = (ulongZ(q) * MOD) >> logsize; // m = qn
-        return (x >> logsize) + MOD - m;
+        uZ m = (ulongZ(q) * mod()) >> logsize; // m = qn
+        return (x >> logsize) + mod() - m;
+    }
+
+    /// @return (x * r) mod m.
+    uZ transform(uZ const &x) const {
+        return (ulongZ(x) << logsize) % mod();
     }
 
 public:
+    /// @return The template parameter MOD.
+    static uZ mod()   { return MOD; }
+    /// @return The, perhaps changed, mod of this Montgomery class.
+    uZ get_mod() { return _mod; }
 
-    static constexpr uZ mod() { return MOD; }
+    void set_mod(uZ m) {
+        _mod = m;
+        modinv = _mod;
+        while(modinv * _mod != 1) modinv *= uZ(2) - _mod * modinv;
+    }
 
     Montgomery() : val(0) {
-        modinv = MOD;
-        while(modinv * MOD != 1) modinv *= uZ(2) - MOD * modinv;
+        set_mod(MOD);
     }
 
-    Montgomery(uZ val_) : Montgomery() {
-        val = val_;
+    Montgomery(longZ val_) : Montgomery() {
+        val = transform(val_ % _mod + _mod);
     }
 
-    template <typename T, std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-    Montgomery(T val_) {
-        longZ x = static_cast<longZ>(val_ % static_cast<longZ>(MOD));
-        if (x < 0) x += MOD;
-        val = static_cast<uZ>(x);
-    }
-
-    template <typename T, std::enable_if_t<!std::is_integral<T>::value>* = nullptr>
+    template <typename T>
     Montgomery(T val_): Montgomery(static_cast<longZ>(val_)) { }
 
     M &operator+=(M const &b) {
         val += b.val;
-        while(val >= MOD) val -= MOD;
+        while(val >= _mod) val -= _mod;
         return *this;
     }
 
     M &operator-=(M const &b) {
-        val += MOD - b.val;
-        while(val >= MOD) val -= MOD;
+        val += _mod - b.val;
+        while(val >= _mod) val -= _mod;
         return *this;
     }
 
@@ -79,13 +92,14 @@ public:
     M operator-() const { return M(0) - M(*this); }
 
 
-    friend bool operator==(const M &A, const M &B) { return A.retrieve() == B.retrieve(); }
-    friend bool operator!=(const M &A, const M &B) { return A.retrieve() != B.retrieve(); }
+    // If A, B have the same modulus then equality can be checked faster from their values "inside" the space.
+    friend bool operator==(const M &A, const M &B) { return A.get() == B.get(); }
+    friend bool operator!=(const M &A, const M &B) { return A.get() != B.get(); }
 
-    friend std::ostream &operator<<(std::ostream &os, const M &x) { return os << x.retrieve(); }
+    friend std::ostream &operator<<(std::ostream &os, const M &x) { return os << x.get(); }
     friend std::istream &operator>>(std::istream &is, M &x) {
-        longZ t; is >> t;
-        x = M(t);
+        Z t; is >> t;
+        x = M(longZ(t));
         return (is);
     }
 
@@ -101,7 +115,7 @@ public:
 
     /// TODO: prime check for fermat's theorem ???
     M inv() const {
-        Z x = retrieve(), y = MOD, u = 1, v = 0;
+        Z x = get(), y = _mod, u = 1, v = 0;
         while (y > 0) {
             Z t = x / y;
             std::swap(x -= t * y, y);
@@ -110,10 +124,11 @@ public:
         return M(u);
     }
 
-    operator int() const { return retrieve(); }
-    uZ retrieve() const {
+    operator int() const { return get(); }
+    /// @return The "real" value of the object, i.e. extract X from (X * r) mod m.
+    uZ get() const {
         uZ ret = reduce(val);
-        while(ret >= MOD) ret -= MOD;
+        while(ret >= _mod) ret -= _mod;
         return ret;
     }
 
@@ -123,8 +138,11 @@ public:
 template <typename Z, typename uZ, typename longZ, typename ulongZ, uZ mod>
 struct is_modular<zeno::Montgomery<Z, uZ, longZ, ulongZ, mod>> : std::true_type {};
 
-template<uint32_t mod>
+template<uint32_t mod = 2>
 using Montgomery32 = Montgomery<int32_t, uint32_t, int64_t, uint64_t, mod>;
+
+template<uint64_t mod = 2>
+using Montgomery64 = Montgomery<int64_t, uint64_t, __int128_t, __uint128_t, mod>;
 
 
 
