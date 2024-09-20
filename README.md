@@ -13,7 +13,7 @@
 - Set power series operations ($R[[x_{1},\dots,x_{n}]]/\left< x_{1}^{2}-q(x_{1}),\dots,x_{n}^{2}-q(x_{n}) \right>$ where $q \in R[x]$ with $\mathrm{deg}(q)\leq 1$).
 - Arbitrary precision arithmetic (efficient for integers $\leq 10^{10^6}$).
 - Vector space operations on bitsets ($\mathbb{F}_{2}^d$).
-- Misc.: Ring of integers modulo $m$ ($\mathbb{Z}/m\mathbb{Z}$). convolution via FFT, NTT etc., elementary combinatorics, elementary number theory, field of fractions ($\mathrm{Frac}(R)$, e.g. $\mathbb{Q}=\mathrm{Frac}(\mathbb{Z})$), complex numbers ($\mathbb{C}$).
+- Misc.: Ring of integers modulo $m$ ($\mathbb{Z}/m\mathbb{Z}$). convolution via FFT, NTT etc., elementary combinatorics, elementary number theory, field of fractions ($\mathrm{Frac}(R)$, e.g. $\mathbb{Q}=\mathrm{Frac}(\mathbb{Z})$ ), complex numbers ($\mathbb{C}$).
 
 
 ## Some Examples
